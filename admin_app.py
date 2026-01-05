@@ -41,7 +41,7 @@ st.title("📄 전자책 요약 노트 생성기 (관리자용)")
 # --------------------------------------------------
 # 주소창의 gid 번호를 확인하여 입력하세요.
 SPREADSHEET_ID = "1eg3TnoILIHXCzf4fPCU6uqzZssLnFS2xHO5zD7N2c0g"
-GID = "775019664"  # '테스트용' 또는 '계획 최종' 탭의 GID
+GID = "397904038"  # '테스트용' 또는 '계획 최종' 탭의 GID
 csv_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GID}"
 
 @st.cache_data
@@ -72,8 +72,8 @@ try:
 
     for i, row in df.iterrows():
         # 컬럼명은 실제 시트의 헤더와 일치해야 합니다 (개념, 내용)
-        concept = str(row.get('개념', '')).strip() if pd.notna(row.get('개념')) else ""
-        content = str(row.get('내용', '')).strip() if pd.notna(row.get('내용')) else ""
+        concept = str(row.get('개념 내용', '')).strip() if pd.notna(row.get('개념 내용')) else ""
+        content = str(row.get('관련 문제', '')).strip() if pd.notna(row.get('관련 문제')) else ""
         
         # 줄바꿈 및 특수문자 처리
         content_html = content.replace('\n', '<br>').replace('|', '').replace('---', '')
