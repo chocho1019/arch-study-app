@@ -172,7 +172,6 @@ if df_raw is not None:
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
             .master-thead {{ display: table-header-group; }} 
             
-            /* 첫 행 (고정 헤더): 상하 padding을 12px -> 4px로 축소하여 높이 감소 */
             .header-box {{
                 display: flex; background-color: #f8f9fa;
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
@@ -186,7 +185,14 @@ if df_raw is not None:
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; }}
 
             .main-container {{ text-align: left; }}
-            .section-container {{ margin-bottom: 10px; text-align: left; }}
+            
+            /* [중요] 소카테고리 섹션이 인쇄 시 잘리지 않도록 설정 */
+            .section-container {{ 
+                margin-bottom: 10px; 
+                text-align: left; 
+                page-break-inside: avoid; /* 소카테고리 제목과 본문이 다른 페이지로 갈라지는 것을 방지 */
+            }}
+            
             .section-header {{
                 width: 100%; background-color: #edf2f7;
                 padding: 8px 20px; font-weight: bold; font-size: 1.0em;
@@ -197,7 +203,7 @@ if df_raw is not None:
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }}
-            .sub-section {{ display: flex; width: 100%; page-break-inside: auto; text-align: left; }}
+            .sub-section {{ display: flex; width: 100%; text-align: left; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
             .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; -webkit-print-color-adjust: exact; }}
@@ -210,7 +216,6 @@ if df_raw is not None:
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
             .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; }}
 
-            /* 마크다운 표 디자인: th와 td의 상하 padding을 10px -> 4px로 축소하여 첫 행 및 전체 높이 감소 */
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
@@ -228,7 +233,7 @@ if df_raw is not None:
     <body>
         <div class="print-button-container">
             <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
-            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 첫 행(헤더)은 가운데, 본문은 좌측으로 정렬됩니다.</span>
+            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 소카테고리 제목과 본문이 한 페이지에 유지되도록 조정되었습니다.</span>
         </div>
         
         <table class="master-table">
