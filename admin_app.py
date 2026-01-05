@@ -107,7 +107,7 @@ else:
     st.markdown("---")
 
     # 4. HTML 표 조립
-    # 구글 시트의 실제 컬럼명: '구분(카테고리)', '개념 내용', '관련 문제', '정답 및 해설', '출제 정보'
+    # 구글 시트의 실제 컬럼명: '구분', '개념', '문제', '정답', '출제'
     
     table_rows = ""
     
@@ -150,6 +150,7 @@ else:
         <table class="report-table">
             <thead>
                 <tr>
+                    <th class="col-concept">구분</th>
                     <th class="col-concept">개념</th>
                     <th class="col-problem">문제</th>
                     <th class="col-answer">정답</th>
