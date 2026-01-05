@@ -97,7 +97,6 @@ if df_raw is not None:
             info = str(row.get('출제', '')).strip()
             freq_val = row.get('빈출', 0)
             
-            # 빈출 뱃지: 테두리 박스 스타일 유지
             freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
 
             raw_num_gu = row.get('숫구', '')
@@ -135,7 +134,6 @@ if df_raw is not None:
                 </div>
                 """
 
-        # 섹션 간격 유지 (10px)
         sections_html += f"""
         <div class="section-container">
             <div class="section-header">{category_title}</div>
@@ -152,13 +150,14 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }}
+            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; text-align: left; }}
             
             .print-button-container {{
                 padding: 10px 20px;
                 background: white;
                 border-bottom: 1px solid #eee;
                 display: block;
+                text-align: left;
             }}
             .btn-print {{
                 background-color: #4CAF50;
@@ -170,59 +169,52 @@ if df_raw is not None:
                 font-weight: bold;
             }}
             
-            .master-table {{ width: 100%; border-collapse: collapse; border: none; }}
+            .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
             .master-thead {{ display: table-header-group; }} 
             
+            /* 첫 행 (고정 헤더): 요청하신 대로 '가운데 정렬' 유지 */
             .header-box {{
                 display: flex; background-color: #f8f9fa;
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
                 font-weight: bold; 
-                /* 텍스트 정렬을 좌측으로 변경 */
-                text-align: left; 
+                text-align: center; 
                 position: sticky; top: 0; z-index: 100;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }}
-            /* 비율 6:4 엄격 고정 및 좌측 정렬 패딩 조정 */
-            .header-box .concept-h {{ 
-                width: 60%; 
-                padding: 12px 12px 12px 30px; /* 본문 간격과 맞추기 위해 좌측 패딩 30px 적용 */
-                box-sizing: border-box; 
-                border-right: 1px solid #dee2e6; 
-            }}
-            .header-box .problem-h {{ 
-                width: 40%; 
-                padding: 12px 12px 12px 25px; /* 본문 간격과 맞추기 위해 좌측 패딩 25px 적용 */
-                box-sizing: border-box; 
-            }}
+            .header-box .concept-h {{ width: 60%; padding: 12px; box-sizing: border-box; border-right: 1px solid #dee2e6; }}
+            .header-box .problem-h {{ width: 40%; padding: 12px; box-sizing: border-box; }}
 
-            .section-container {{ margin-bottom: 10px; }}
+            /* 본문 내용: 모두 '좌측 정렬' */
+            .main-container {{ text-align: left; }}
+            .section-container {{ margin-bottom: 10px; text-align: left; }}
             .section-header {{
                 width: 100%; background-color: #edf2f7;
                 padding: 8px 20px; font-weight: bold; font-size: 1.0em;
                 color: #718096; border-left: 5px solid #cbd5e0;
                 box-sizing: border-box; 
                 margin-top: 5px;
+                text-align: left;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }}
-            .sub-section {{ display: flex; width: 100%; page-break-inside: auto; }}
-            .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }}
+            .sub-section {{ display: flex; width: 100%; page-break-inside: auto; text-align: left; }}
+            .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
             .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; -webkit-print-color-adjust: exact; }}
-            .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; }}
-            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; }}
-            .concept-body {{ color: #4a5568; font-size: 0.98em; }}
-            .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; }}
-            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; }}
-            .problem-body {{ margin-bottom: 8px; color: #2d3748; }}
-            .problem-body strong {{ font-weight: 700; }}
-            .answer-body {{ color: #4a5568; padding-left: 2px; }}
+            
+            .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
+            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
+            .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; }}
+            .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
+            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
+            .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
+            .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; }}
 
-            /* 기존 마크다운 표 스타일 (절대 유지) */
+            /* 표 내부 텍스트 정렬: 이미지에서 보였던 가운데 정렬 문제를 좌측 정렬로 수정 */
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
-            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: center; }}
-            th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; -webkit-print-color-adjust: exact; }}
+            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: left; }}
+            th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
 
             @media print {{
@@ -237,13 +229,13 @@ if df_raw is not None:
     <body>
         <div class="print-button-container">
             <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
-            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 모든 페이지 상단에 헤더가 고정됩니다.</span>
+            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 첫 행(헤더)은 가운데, 본문은 좌측으로 정렬됩니다.</span>
         </div>
         
         <table class="master-table">
             <thead class="master-thead">
                 <tr>
-                    <td colspan="2" style="padding: 0; border: none;">
+                    <td style="padding: 0; border: none;">
                         <div class="header-box">
                             <div class="concept-h">개념</div>
                             <div class="problem-h">문제</div>
@@ -253,7 +245,7 @@ if df_raw is not None:
             </thead>
             <tbody>
                 <tr>
-                    <td colspan="2" style="padding: 0; border: none;">
+                    <td style="padding: 0; border: none;">
                         <div class="main-container">
                             {sections_html}
                         </div>
