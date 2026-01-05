@@ -150,7 +150,6 @@ else:
         <table class="report-table">
             <thead>
                 <tr>
-                    <th class="col-concept">구분</th>
                     <th class="col-concept">개념</th>
                     <th class="col-problem">문제</th>
                     <th class="col-answer">정답</th>
