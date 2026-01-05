@@ -15,6 +15,8 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?forma
 def load_data(url):
     try:
         df = pd.read_csv(url)
+        # 모든 컬럼명의 앞뒤 공백을 제거하여 매칭 확률을 높임
+        df.columns = [col.strip() for col in df.columns]
         return df.fillna("")
     except Exception:
         return None
@@ -27,14 +29,23 @@ if df is not None:
     if st.button("🖨️ PDF 인쇄/저장하기"):
         components.html("<script>window.parent.print();</script>", height=0)
 
-    # 3. 데이터 가공 (pk를 기준으로 그룹화 아이디 생성)
-    def extract_sub_cat_id(pk):
-        parts = str(pk).split('-')
+    # --- [수정 지점 1] pk 열 이름 찾기 (대소문자 대응) ---
+    # 'pk' 또는 'PK' 등 유사한 이름의 컬럼을 찾습니다.
+    pk_col = next((c for c in df.columns if c.lower() == 'pk'), None)
+    
+    if pk_col is None:
+        st.error(f"시트에서 'pk' 열을 찾을 수 없습니다. 현재 컬럼: {list(df.columns)}")
+        st.stop()
+
+    def extract_sub_cat_id(pk_val):
+        parts = str(pk_val).split('-')
         if len(parts) >= 3:
             return "-".join(parts[:3]) # A-02-01 형태 추출
         return "ETC"
 
-    df['sub_cat_id'] = df['pk'].apply(extract_sub_cat_id)
+    # 실제 찾은 pk_col을 사용합니다.
+    df['sub_cat_id'] = df[pk_col].apply(extract_sub_cat_id)
+    # ----------------------------------------------
     
     # HTML 생성을 위한 변수
     md_extensions = ['tables', 'fenced_code', 'nl2br']
@@ -113,19 +124,15 @@ if df is not None:
                 position: sticky; top: 0; z-index: 10;
             }}
             .header-box div {{ padding: 10px; box-sizing: border-box; }}
-            
-            /* 소카테고리별 섹션 묶음 */
             .sub-section {{ 
                 display: flex; 
                 width: 100%; 
-                border-bottom: 2px solid #444; /* 소카테고리 구분선 */
+                border-bottom: 2px solid #444; 
                 page-break-inside: auto;
             }}
-            
             .column {{ display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }}
             .concept-col {{ width: 60%; border-right: 1px solid #aaa; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; }}
-            
             .content-block {{ 
                 width: 100%; margin-bottom: 20px; padding-bottom: 10px; 
                 border-bottom: 1px dashed #ddd; page-break-inside: avoid; 
@@ -139,11 +146,9 @@ if df is not None:
             .concept-body {{ padding-left: 5px; }}
             .info-tag {{ color: #718096; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }}
             .ans-label {{ font-weight: bold; color: #e53e3e; margin-top: 10px; font-size: 0.9em; }}
-            
             table {{ border-collapse: collapse; width: 100%; margin: 10px 0; }}
             th, td {{ border: 1px solid #cbd5e0; padding: 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #edf2f7; }}
-
             @media print {{
                 .header-box {{ position: static; }}
                 .sub-section {{ page-break-after: auto; }}
