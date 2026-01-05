@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
 import markdown
-import re
 
 # 1. 페이지 설정
 st.set_page_config(layout="wide", page_title="건축기사 요약 노트")
@@ -20,71 +19,49 @@ def load_data(url):
     except Exception:
         return None
 
-df_raw = load_data(csv_url)
+df = load_data(csv_url)
 
-st.title("📑 건축기사 요약 노트 (계층 구조 최적화)")
+st.title("📑 건축기사 요약 노트 (소카테고리 분리 모드)")
 
-if df_raw is not None:
-    # --- 사이드바 필터 설정 ---
-    st.sidebar.header("🔍 데이터 필터")
-    
-    subject_list = ["전체"] + sorted(df_raw['과목'].unique().tolist()) if '과목' in df_raw.columns else ["전체"]
-    selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
+if df is not None:
+    if st.button("🖨️ PDF 인쇄/저장하기"):
+        components.html("<script>window.parent.print();</script>", height=0)
 
-    category_list = ["전체"] + sorted(df_raw['대카테고리'].unique().tolist()) if '대카테고리' in df_raw.columns else ["전체"]
-    selected_category = st.sidebar.selectbox("대카테고리 선택", category_list)
-
-    # 데이터 필터링
-    df = df_raw.copy()
-    if selected_subject != "전체":
-        df = df[df['과목'] == selected_subject]
-    if selected_category != "전체":
-        df = df[df['대카테고리'] == selected_category]
-
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        if st.button("🖨️ PDF 인쇄/저장"):
-            components.html("<script>window.parent.print();</script>", height=0)
-    with col2:
-        st.write(f"현재 출력 항목: **{len(df)}** 개")
-
-    # 3. HTML/CSS 생성
+    # 3. HTML/CSS 통합 생성
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     concept_list_html = ""
     problem_list_html = ""
-    
-    current_sub_category = ""
 
     for _, row in df.iterrows():
+        # 데이터 추출
+        sub_cat = str(row.get('소카테고리', '')).strip() # 시트의 소카테고리 열
+        num_val = str(row.get('숫자', '')).strip()      # 시트의 숫자 열
         cat = str(row.get('구분', '')).strip()
         concept_raw = str(row.get('개념', '')).strip()
         problem_raw = str(row.get('문제', '')).strip()
         answer_raw = str(row.get('정답', '')).strip()
         info = str(row.get('출제', '')).strip()
 
-        # [지능형 구분 로직] 
-        # 1. "1. 제목" 형태를 찾아서 소카테고리로 저장
-        if re.match(r'^\d+\.', cat):
-            current_sub_category = cat
-            # 만약 이 행에 개념/내용이 아예 없다면 제목 전용 행으로 간주하고 넘어감
-            if not concept_raw and not problem_raw:
-                continue
-        
-        # 2. "1)" 형태가 나오면 저장된 소카테고리를 머리에 붙임
-        display_title_html = ""
-        if re.match(r'^\d+\)', cat) or (not cat and concept_raw):
-            if current_sub_category:
-                display_title_html = f'<div class="sub-category-title">{current_sub_category}</div>'
-                current_sub_category = "" # 한 번 표시 후 초기화
+        # 숫자 가공: 숫자 뒤에 )가 없으면 붙여줌 (예: 1 -> 1))
+        if num_val:
+            num_display = f"{num_val})" if ')' not in num_val else num_val
+        else:
+            num_display = ""
 
-        # 왼쪽: 개념 블록
+        # 왼쪽: 개념 블록 (소카테고리 열이 추가된 레이아웃)
         if cat or concept_raw:
             c_body = markdown.markdown(concept_raw, extensions=md_extensions)
+            
+            # 소카테고리가 있을 때만 출력할 HTML
+            sub_cat_html = f'<div class="sub-cat-box">{sub_cat}</div>' if sub_cat else ""
+            
             concept_list_html += f"""
             <div class="content-block">
-                {display_title_html}
-                <div class="category-title">{cat}</div>
-                <div class="concept-body">{c_body}</div>
+                {sub_cat_html}
+                <div class="concept-row">
+                    <div class="category-title">{num_display} {cat}</div>
+                    <div class="concept-body">{c_body}</div>
+                </div>
             </div>
             """
 
@@ -102,55 +79,77 @@ if df_raw is not None:
             </div>
             """
 
-    # 4. 전체 HTML 구조 (스타일 보강)
+    # 4. 전체 HTML 구조 정의 (CSS 수정 포함)
     full_html_page = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }}
+            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; }}
             .header-box {{
-                display: flex; background-color: #f8f9fa;
-                border-top: 2.5px solid #222; border-bottom: 1px solid #dee2e6;
-                font-weight: bold; text-align: center;
+                display: flex;
+                background-color: #f1f3f5;
+                border-top: 2px solid #333;
+                border-bottom: 1px solid #aaa;
+                font-weight: bold;
+                text-align: center;
                 position: sticky; top: 0; z-index: 10;
             }}
-            .header-box div {{ padding: 12px; }}
+            .header-box div {{ padding: 10px; }}
             .main-wrapper {{ display: flex; width: 100%; align-items: flex-start; }}
             .column {{ display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }}
-            .concept-col {{ width: 60%; border-right: 1.5px solid #eee; }}
-            .problem-col {{ width: 40%; background-color: #fafafa; min-height: 100vh; }}
+            
+            /* 열 너비 설정 */
+            .concept-col {{ width: 60%; border-right: 1px solid #aaa; }}
+            .problem-col {{ width: 40%; background-color: #fcfcfc; min-height: 100vh; }}
             
             .content-block {{
-                width: 100%; margin-bottom: 30px; padding-bottom: 15px;
-                border-bottom: 1px solid #f0f0f0; page-break-inside: avoid;
-            }}
-            
-            .sub-category-title {{
-                font-size: 1.2em; font-weight: 800; color: #1a365d;
-                margin-bottom: 12px; padding: 6px 12px;
-                background-color: #ebf8ff; border-left: 5px solid #3182ce;
+                width: 100%;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 1px dashed #ddd;
+                page-break-inside: avoid;
             }}
 
-            .category-title {{ font-weight: 700; font-size: 1.05em; color: #2d3748; margin-bottom: 8px; }}
-            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 8px; }}
-            .ans-label {{ font-weight: bold; color: #e53e3e; margin-top: 12px; font-size: 0.9em; }}
+            /* 소카테고리 박스 스타일 */
+            .sub-cat-box {{
+                display: inline-block;
+                background-color: #2D3748;
+                color: white;
+                padding: 2px 8px;
+                font-size: 0.85em;
+                border-radius: 4px;
+                margin-bottom: 8px;
+                font-weight: bold;
+            }}
+
+            .category-title {{ 
+                font-weight: bold; 
+                font-size: 1.1em; 
+                color: #000; 
+                margin-bottom: 5px; 
+            }}
             
-            table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border: 1px solid #e2e8f0; }}
-            th, td {{ border: 1px solid #e2e8f0; padding: 10px; font-size: 0.9em; text-align: left; }}
-            th {{ background-color: #f7fafc; font-weight: bold; }}
+            .concept-body {{ padding-left: 5px; }}
+            
+            .info-tag {{ color: #718096; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }}
+            .ans-label {{ font-weight: bold; color: #e53e3e; margin-top: 10px; font-size: 0.9em; }}
+            
+            table {{ border-collapse: collapse; width: 100%; margin: 10px 0; }}
+            th, td {{ border: 1px solid #cbd5e0; padding: 8px; font-size: 0.9em; text-align: center; }}
+            th {{ background-color: #edf2f7; }}
 
             @media print {{
                 .header-box {{ position: static; }}
+                .sub-cat-box {{ background-color: #333 !important; color: white !important; -webkit-print-color-adjust: exact; }}
                 .problem-col {{ background-color: white !important; -webkit-print-color-adjust: exact; }}
-                .sub-category-title {{ background-color: #f0f7ff !important; border-left: 5px solid #3182ce !important; }}
             }}
         </style>
     </head>
     <body>
         <div class="header-box">
-            <div style="width: 60%; border-right: 1.5px solid #eee;">개념 요약</div>
+            <div style="width: 60%; border-right: 1px solid #aaa;">개념 요약</div>
             <div style="width: 40%;">관련 문제 및 정답</div>
         </div>
         <div class="main-wrapper">
@@ -161,7 +160,10 @@ if df_raw is not None:
     </html>
     """
 
-    iframe_height = max(1500, len(df) * 180) 
+    # 내용 길이에 맞춰 높이 넉넉히 설정
+    iframe_height = max(2000, len(df) * 150)
     components.html(full_html_page, height=iframe_height, scrolling=True)
+
 else:
     st.error("데이터를 불러오지 못했습니다.")
+    
