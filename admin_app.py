@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
 import markdown
+import re
 
 # 1. 페이지 설정
 st.set_page_config(layout="wide", page_title="건축기사 요약 노트 생성기")
@@ -44,31 +45,42 @@ st.markdown("""
         overflow-wrap: break-word;
     }
 
-    /* 1. 헤더 높이 축소 (패딩 조절) */
+    /* 헤더 높이 및 스타일 */
     .print-table th {
         background-color: #e8f0f2 !important;
         font-weight: bold;
         text-align: center;
         border-top: 2px solid #333;
-        padding: 4px 10px; /* 기존 10px에서 대폭 축소 */
-        height: 30px;      /* 최소 높이 지정 */
+        padding: 4px 10px;
+        height: 30px;
     }
 
-    /* 2. 열 비율 재설정 (개념 60% : 문제 40%) */
+    /* --- 카테고리 스타일 추가 --- */
+    /* 대카테고리: 진한 배경, 흰색 글씨 */
+    .row-main-cat {
+        background-color: #4A5568 !important;
+        color: white !important;
+        font-size: 1.2em;
+        font-weight: bold;
+        text-align: center;
+    }
+    .row-main-cat td { border: 1px solid #2D3748 !important; padding: 8px !important; }
+
+    /* 소카테고리: 연한 배경, 들여쓰기 효과 */
+    .row-sub-cat {
+        background-color: #F7FAFC !important;
+        color: #2D3748 !important;
+        font-weight: bold;
+        font-size: 1.05em;
+    }
+    .row-sub-cat td { border: 1px solid #CBD5E0 !important; padding: 6px 20px !important; }
+
+    /* 일반 데이터 행 스타일 */
     .col-concept { width: 60%; }
     .col-problem { width: 40%; font-size: 0.9em; }
 
     .category-title { font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #eee; margin-bottom: 8px; display: block; color: #000; }
-    
-    /* 문제 셀 내부 출제 정보 스타일 */
-    .info-tag { 
-        display: inline-block;
-        color: #888;
-        font-weight: bold;
-        font-size: 0.85em;
-        margin-bottom: 5px;
-    }
-    
+    .info-tag { display: inline-block; color: #888; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }
     .ans-label { font-weight: bold; color: #333; margin-top: 10px; display: block; }
 
     /* 내부 마크다운 표 스타일 */
@@ -85,6 +97,8 @@ st.markdown("""
         header, footer, .stButton, [data-testid="stHeader"], [data-testid="stSidebar"] { display: none !important; }
         .main .block-container { padding: 0 !important; margin: 0 !important; }
         tr { page-break-inside: avoid; }
+        .row-main-cat { -webkit-print-color-adjust: exact; } /* 인쇄 시 배경색 유지 */
+        .row-sub-cat { -webkit-print-color-adjust: exact; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -97,39 +111,48 @@ if df is not None:
 
     st.markdown("---")
 
-    # 4. HTML 테이블 생성 로직
     table_content = ""
     md_extensions = ['tables', 'fenced_code', 'nl2br']
 
     for _, row in df.iterrows():
         cat = str(row.get('구분', '')).strip()
-        concept_html = markdown.markdown(str(row.get('개념', '')).strip(), extensions=md_extensions)
+        concept_raw = str(row.get('개념', '')).strip()
+        
+        # --- 카테고리 판별 로직 ---
+        # 1. 대카테고리 (예: I. 한국건축사)
+        if re.match(r'^[IVX]+\.', cat) and not concept_raw:
+            table_content += f'<tr class="row-main-cat"><td colspan="2">{cat}</td></tr>'
+            continue
+            
+        # 2. 소카테고리 (예: 1. 공포양식)
+        if re.match(r'^\d+\.', cat) and not concept_raw:
+            table_content += f'<tr class="row-sub-cat"><td colspan="2">{cat}</td></tr>'
+            continue
+
+        # 3. 일반 데이터 행
+        concept_html = markdown.markdown(concept_raw, extensions=md_extensions)
         prob_html = markdown.markdown(str(row.get('문제', '')).strip(), extensions=md_extensions)
         ans_html = markdown.markdown(str(row.get('정답', '')).strip(), extensions=md_extensions)
         info = str(row.get('출제', '')).strip()
 
         if not cat and not concept_html: continue
 
-        # 출제 정보가 있을 경우 [정보 출제] 형태로 생성
         info_display = f'<span class="info-tag">[{info} 출제]</span><br>' if info else ""
 
         row_html = (
             f'<tr>'
             f'<td class="col-concept"><span class="category-title">{cat}</span>{concept_html}</td>'
-            f'<td class="col-problem">'
-            f'{info_display}{prob_html}'
-            f'<span class="ans-label">정답:</span>{ans_html}'
-            f'</td>'
+            f'<td class="col-problem">{info_display}{prob_html}<span class="ans-label">정답:</span>{ans_html}</td>'
             f'</tr>'
         )
         table_content += row_html
 
     full_table_html = (
         f'<table class="print-table">'
-        f'<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제</th></tr></thead>'
+        f'<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제 및 정답</th></tr></thead>'
         f'<tbody>{table_content}</tbody></table>'
     )
 
     st.markdown(full_table_html, unsafe_allow_html=True)
 else:
-    st.error("데이터를 불러오지 못했습니다. Google Sheets URL을 확인해주세요.")
+    st.error("데이터를 불러오지 못했습니다.")
