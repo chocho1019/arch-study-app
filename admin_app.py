@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
+import pandas as pd
 import streamlit.components.v1 as components
 
 # 페이지 설정
@@ -27,7 +27,7 @@ st.markdown("""
     }
     @media print {
         .no-print { display: none !important; }
-        header, footer, [data-testid="stSidebar"] { display: none !important; }
+        header, footer, [data-testid="stSidebar"], [data-testid="stHeader"] { display: none !important; }
         .report-table { border: 2px solid #000 !important; }
         th { background-color: #e0e0e0 !important; -webkit-print-color-adjust: exact; }
     }
@@ -37,82 +37,58 @@ st.markdown("""
 st.title("📄 전자책 요약 노트 생성기 (관리자용)")
 
 # --------------------------------------------------
-# Google Sheet 연결 (연결 안정화 버전)
+# 2. 데이터 로드 (ASCII 오류 해결을 위한 Pandas 방식)
 # --------------------------------------------------
-SCOPE = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
-
+# 주소창의 gid 번호를 확인하여 입력하세요.
 SPREADSHEET_ID = "1eg3TnoILIHXCzf4fPCU6uqzZssLnFS2xHO5zD7N2c0g"
+GID = "775019664"  # '테스트용' 또는 '계획 최종' 탭의 GID
+csv_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GID}"
 
-@st.cache_resource
-def get_gspread_client():
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
-        scopes=SCOPE
-    )
-    return gspread.authorize(creds)
+@st.cache_data
+def load_data(url):
+    # 인코딩을 utf-8로 지정하여 한글 깨짐 방지
+    return pd.read_csv(url, encoding='utf-8')
 
-# 전역 변수로 설정
-gc = get_gspread_client()
+try:
+    df = load_data(csv_url)
 
-@st.cache_resource
-def get_working_sheets():
-    try:
-        doc = gc.open_by_key(SPREADSHEET_ID)
-        return doc.worksheet("users"), doc.worksheet("favorites")
-    except Exception as e:
-        return None, None
-
-user_sheet, fav_sheet = get_working_sheets()
-
-
-
-    # 3. 인쇄 버튼
+    # 3. 인쇄 버튼 (들여쓰기 수정 완료)
     if st.button("🖨️ PDF로 추출하기 (인쇄 창 열기)"):
         components.html("<script>window.parent.focus(); window.parent.print();</script>", height=0)
 
     st.markdown("---")
 
-    # 4. 시트 제목에 맞춘 HTML 표 생성
+    # 4. HTML 표 생성
     html_code = """
     <table class="report-table">
         <thead>
             <tr>
                 <th style="width: 15%;">개념</th>
-                <th style="width: 35%;">내용 요약</th>
-                <th style="width: 25%;">문제</th>
-                <th style="width: 20%;">정답 및 해설</th>
-                <th style="width: 5%;">출제</th>
+                <th style="width: 85%;">내용 요약</th>
             </tr>
         </thead>
         <tbody>
     """
 
     for i, row in df.iterrows():
-        # 시트의 컬럼명을 정확히 매칭 (스크린샷 기준)
-        # 데이터가 비어있을 경우를 대비해 str() 처리 및 공백 제거
-        category = str(row.get('구분(카테고리)', ''))
-        content  = str(row.get('개념 내용', '')).replace('\n', '<br>')
-        question = str(row.get('관련 문제', ''))
-        answer   = str(row.get('정답 및 해설', '')).replace('\n', '<br>')
-        info     = str(row.get('출제 정보', ''))
+        # 컬럼명은 실제 시트의 헤더와 일치해야 합니다 (개념, 내용)
+        concept = str(row.get('개념', '')).strip() if pd.notna(row.get('개념')) else ""
+        content = str(row.get('내용', '')).strip() if pd.notna(row.get('내용')) else ""
         
-        html_code += f"""
-            <tr>
-                <td style="font-weight:bold; text-align:center;">{category}</td>
-                <td>{content}</td>
-                <td>{question}</td>
-                <td>{answer}</td>
-                <td style="text-align:center; color:gray; font-size:12px;">{info}</td>
-            </tr>
-        """
+        # 줄바꿈 및 특수문자 처리
+        content_html = content.replace('\n', '<br>').replace('|', '').replace('---', '')
+
+        if concept or content:
+            html_code += f"""
+                <tr>
+                    <td style="font-weight:bold; text-align:center; background-color:#f9f9f9;">{concept}</td>
+                    <td>{content_html}</td>
+                </tr>
+            """
 
     html_code += "</tbody></table>"
     st.markdown(html_code, unsafe_allow_html=True)
 
 except Exception as e:
-    st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
-    st.info("시트의 탭 이름이 '테스트용'이 맞는지 확인해 주세요.")
-    
+    st.error(f"데이터 로드 중 오류 발생: {e}")
+    st.info("시트의 GID 번호가 정확한지 확인해 주세요.")
