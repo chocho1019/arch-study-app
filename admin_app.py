@@ -34,34 +34,32 @@ if df is not None:
 
     for _, row in df.iterrows():
         # 데이터 추출
-        sub_cat = str(row.get('소카테고리', '')).strip() # 시트의 소카테고리 열
-        num_val = str(row.get('숫자', '')).strip()      # 시트의 숫자 열
+        sub_cat = str(row.get('소카테고리', '')).strip()
+        num_val_raw = str(row.get('숫자', '')).strip()
         cat = str(row.get('구분', '')).strip()
         concept_raw = str(row.get('개념', '')).strip()
         problem_raw = str(row.get('문제', '')).strip()
         answer_raw = str(row.get('정답', '')).strip()
         info = str(row.get('출제', '')).strip()
 
-        # 데이터를 가져올 때 float 형태(.0)를 제거하기 위해 정수형 변환 후 문자열로 바꿉니다.
-raw_num = row.get('숫자', '')
-try:
-    # 데이터가 숫자라면 정수로 변환하여 .0 제거, 아니면 그대로 문자열 처리
-    num_val = str(int(float(raw_num))) if str(raw_num).strip() and str(raw_num) != "nan" else str(raw_num).strip()
-except:
-    num_val = str(raw_num).strip()
+        # --- [오류 수정 지점] 들여쓰기 정렬 시작 ---
+        raw_num = row.get('숫자', '')
+        try:
+            # 데이터가 숫자라면 정수로 변환하여 .0 제거
+            num_val = str(int(float(raw_num))) if str(raw_num).strip() and str(raw_num) != "nan" else str(raw_num).strip()
+        except:
+            num_val = str(raw_num).strip()
 
-if num_val and num_val != "nan":
-    # 숫자 뒤에 )를 붙여줍니다.
-    num_display = f"{num_val})" if ')' not in num_val else num_val
-else:
-    num_display = ""
-            
+        if num_val and num_val != "nan":
+            # 숫자 뒤에 )를 붙여줍니다.
+            num_display = f"{num_val})" if ')' not in num_val else num_val
+        else:
+            num_display = ""
+        # --- [오류 수정 지점] 들여쓰기 정렬 끝 ---
 
-        # 왼쪽: 개념 블록 (소카테고리 열이 추가된 레이아웃)
+        # 왼쪽: 개념 블록
         if cat or concept_raw:
             c_body = markdown.markdown(concept_raw, extensions=md_extensions)
-            
-            # 소카테고리가 있을 때만 출력할 HTML
             sub_cat_html = f'<div class="sub-cat-box">{sub_cat}</div>' if sub_cat else ""
             
             concept_list_html += f"""
@@ -88,7 +86,7 @@ else:
             </div>
             """
 
-    # 4. 전체 HTML 구조 정의 (CSS 수정 포함)
+    # 4. 전체 HTML 구조 정의
     full_html_page = f"""
     <!DOCTYPE html>
     <html>
@@ -97,58 +95,29 @@ else:
         <style>
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; }}
             .header-box {{
-                display: flex;
-                background-color: #f1f3f5;
-                border-top: 2px solid #333;
-                border-bottom: 1px solid #aaa;
-                font-weight: bold;
-                text-align: center;
+                display: flex; background-color: #f1f3f5;
+                border-top: 2px solid #333; border-bottom: 1px solid #aaa;
+                font-weight: bold; text-align: center;
                 position: sticky; top: 0; z-index: 10;
             }}
             .header-box div {{ padding: 10px; }}
             .main-wrapper {{ display: flex; width: 100%; align-items: flex-start; }}
             .column {{ display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }}
-            
-            /* 열 너비 설정 */
             .concept-col {{ width: 60%; border-right: 1px solid #aaa; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; min-height: 100vh; }}
-            
-            .content-block {{
-                width: 100%;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-                border-bottom: 1px dashed #ddd;
-                page-break-inside: avoid;
-            }}
-
-            /* 소카테고리 박스 스타일 */
+            .content-block {{ width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px dashed #ddd; page-break-inside: avoid; }}
             .sub-cat-box {{
-                display: inline-block;
-                background-color: #2D3748;
-                color: white;
-                padding: 2px 8px;
-                font-size: 0.85em;
-                border-radius: 4px;
-                margin-bottom: 8px;
-                font-weight: bold;
+                display: inline-block; background-color: #2D3748; color: white;
+                padding: 2px 8px; font-size: 0.85em; border-radius: 4px;
+                margin-bottom: 8px; font-weight: bold;
             }}
-
-            .category-title {{ 
-                font-weight: bold; 
-                font-size: 1.1em; 
-                color: #000; 
-                margin-bottom: 5px; 
-            }}
-            
+            .category-title {{ font-weight: bold; font-size: 1.1em; color: #000; margin-bottom: 5px; }}
             .concept-body {{ padding-left: 5px; }}
-            
             .info-tag {{ color: #718096; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }}
             .ans-label {{ font-weight: bold; color: #e53e3e; margin-top: 10px; font-size: 0.9em; }}
-            
             table {{ border-collapse: collapse; width: 100%; margin: 10px 0; }}
             th, td {{ border: 1px solid #cbd5e0; padding: 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #edf2f7; }}
-
             @media print {{
                 .header-box {{ position: static; }}
                 .sub-cat-box {{ background-color: #333 !important; color: white !important; -webkit-print-color-adjust: exact; }}
@@ -169,10 +138,7 @@ else:
     </html>
     """
 
-    # 내용 길이에 맞춰 높이 넉넉히 설정
     iframe_height = max(2000, len(df) * 150)
     components.html(full_html_page, height=iframe_height, scrolling=True)
-
 else:
     st.error("데이터를 불러오지 못했습니다.")
-    
