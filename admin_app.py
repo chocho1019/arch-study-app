@@ -21,19 +21,15 @@ def load_data(url):
 
 df_raw = load_data(csv_url)
 
-st.title("📑 건축기사 요약 노트 (필터 및 독립 열 모드)")
+st.title("📑 건축기사 요약 노트 (계층 구조 모드)")
 
 if df_raw is not None:
     # --- 사이드바 필터 설정 ---
     st.sidebar.header("🔍 데이터 필터")
     
-    # 과목 필터 (예: 건축계획, 건축구조 등)
-    # 실제 구글 시트의 컬럼명에 맞춰 '과목' 부분을 수정하세요.
     subject_list = ["전체"] + sorted(df_raw['과목'].unique().tolist()) if '과목' in df_raw.columns else ["전체"]
     selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
 
-    # 대카테고리 필터 (예: 제1장, 한국건축사 등)
-    # 실제 구글 시트의 컬럼명에 맞춰 '대카테고리' 부분을 수정하세요.
     category_list = ["전체"] + sorted(df_raw['대카테고리'].unique().tolist()) if '대카테고리' in df_raw.columns else ["전체"]
     selected_category = st.sidebar.selectbox("대카테고리 선택", category_list)
 
@@ -44,7 +40,6 @@ if df_raw is not None:
     if selected_category != "전체":
         df = df[df['대카테고리'] == selected_category]
 
-    # 상단 버튼 영역
     col1, col2 = st.columns([1, 5])
     with col1:
         if st.button("🖨️ PDF 인쇄/저장"):
@@ -56,6 +51,9 @@ if df_raw is not None:
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     concept_list_html = ""
     problem_list_html = ""
+    
+    # 소카테고리 제목을 임시 저장할 변수
+    current_sub_category = ""
 
     for _, row in df.iterrows():
         cat = str(row.get('구분', '')).strip()
@@ -64,17 +62,36 @@ if df_raw is not None:
         answer_raw = str(row.get('정답', '')).strip()
         info = str(row.get('출제', '')).strip()
 
-        # 왼쪽: 개념 블록
+        # [핵심 로직] 구분 필드 분석
+        # 1. '1. 공포양식' 처럼 숫자로 끝나는 제목형태이고 개념이 비어있다면 소카테고리로 저장
+        if cat and not concept_raw and not problem_raw:
+            current_sub_category = cat
+            continue # 화면에 바로 그리지 않고 다음 행을 기다림
+
+        # 2. '1)' 처럼 내용이 시작되는 경우
+        display_cat = cat
+        if cat.endswith(')'):
+            # 소카테고리 제목이 저장되어 있다면 결합
+            if current_sub_category:
+                display_title = f'<div class="sub-category-title">{current_sub_category}</div>'
+                current_sub_category = "" # 사용 후 초기화
+            else:
+                display_title = ""
+        else:
+            display_title = ""
+
+        # 왼쪽: 개념 블록 생성
         if cat or concept_raw:
             c_body = markdown.markdown(concept_raw, extensions=md_extensions)
             concept_list_html += f"""
             <div class="content-block">
-                <div class="category-title">{cat}</div>
+                {display_title}
+                <div class="category-title">{display_cat}</div>
                 <div class="concept-body">{c_body}</div>
             </div>
             """
 
-        # 오른쪽: 문제 블록
+        # 오른쪽: 문제 블록 생성
         if problem_raw:
             p_body = markdown.markdown(problem_raw, extensions=md_extensions)
             a_body = markdown.markdown(answer_raw, extensions=md_extensions)
@@ -89,7 +106,6 @@ if df_raw is not None:
             """
 
     # 4. 전체 HTML 구조 정의
-    # (내용 길이에 따라 높이가 가변적이므로 컨테이너 높이 설정을 위해 min-height 사용)
     full_html_page = f"""
     <!DOCTYPE html>
     <html>
@@ -111,14 +127,26 @@ if df_raw is not None:
             .column {{ display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }}
             .concept-col {{ width: 60%; border-right: 1px solid #aaa; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; min-height: 100vh; }}
+            
             .content-block {{
                 width: 100%;
                 margin-bottom: 25px;
-                padding-bottom: 15px;
+                padding-bottom: 10px;
                 border-bottom: 1px dashed #ddd;
                 page-break-inside: avoid;
             }}
-            .category-title {{ font-weight: bold; font-size: 1.15em; color: #1a202c; margin-bottom: 10px; }}
+            
+            /* 소카테고리 상단 제목 스타일 */
+            .sub-category-title {{
+                font-size: 1.1em;
+                font-weight: 700;
+                color: #2b6cb0;
+                margin-bottom: 8px;
+                border-left: 4px solid #2b6cb0;
+                padding-left: 8px;
+            }}
+
+            .category-title {{ font-weight: bold; font-size: 1.05em; color: #1a202c; margin-bottom: 5px; }}
             .info-tag {{ color: #718096; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }}
             .ans-label {{ font-weight: bold; color: #e53e3e; margin-top: 10px; font-size: 0.9em; }}
             
@@ -145,10 +173,7 @@ if df_raw is not None:
     </html>
     """
 
-    # 내용의 양에 따라 height를 동적으로 조절하거나 충분히 큰 값을 줍니다.
-    iframe_height = max(1000, len(df) * 150) 
+    iframe_height = max(1200, len(df) * 160) 
     components.html(full_html_page, height=iframe_height, scrolling=True)
-
 else:
     st.error("데이터를 불러오지 못했습니다.")
-    
