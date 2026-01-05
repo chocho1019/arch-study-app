@@ -57,8 +57,17 @@ if df_raw is not None:
 
     df = filtered_df
 
+    # [수정 2] 인쇄 로직 개선: 상위 윈도우가 아닌 현재 데이터가 로드된 iframe의 내용을 인쇄하도록 함
     if st.button("🖨️ PDF 인쇄/저장하기"):
-        components.html("<script>window.parent.print();</script>", height=0)
+        components.html(
+            """
+            <script>
+                var iframe = window.parent.document.querySelector('iframe[title="streamlit.components.v1.components.html"]');
+                iframe.contentWindow.print();
+            </script>
+            """,
+            height=0,
+        )
 
     pk_col = next((c for c in df.columns if c.lower() == 'pk'), None)
     
@@ -100,8 +109,8 @@ if df_raw is not None:
             info = str(row.get('출제', '')).strip()
             freq_val = row.get('빈출', 0)
             
-            # 1. 빈출 뱃지 수정 (별표 제거, 연한 회색 테마)
-            freq_badge = f'<span style="background-color: #edf2f7; color: #718096; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 8px; font-weight: normal;">{freq_val}회</span>' if freq_val > 0 else ""
+            # [수정 1] 빈출 뱃지: 배경색 제거, 글자만 남김
+            freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal;">{freq_val}회</span>' if freq_val > 0 else ""
 
             raw_num_gu = row.get('숫구', '')
             try:
@@ -157,32 +166,24 @@ if df_raw is not None:
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }}
             .header-box {{
                 display: flex; background-color: #f8f9fa;
-                /* 4. 상단 라인 수정 (굵은 선에서 연한 선으로) */
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
                 font-weight: bold; text-align: center;
                 position: sticky; top: 0; z-index: 100;
             }}
             .header-box div {{ padding: 12px; box-sizing: border-box; }}
-            
-            /* 2. 섹션 간격 수정 (40px -> 20px) */
             .section-container {{ margin-bottom: 20px; }}
-            
             .section-header {{
                 width: 100%; background-color: #edf2f7;
                 padding: 8px 20px; font-weight: bold; font-size: 1.0em;
                 color: #718096; border-left: 5px solid #cbd5e0;
                 box-sizing: border-box; 
-                /* 2. 이전 개념/문제와의 간격 수정 (20px -> 10px) */
                 margin-top: 10px;
             }}
             .sub-section {{ display: flex; width: 100%; page-break-inside: auto; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }}
             .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; }}
-            
-            /* 2. 블록 간 간격 수정 (25px -> 12px) */
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; }}
-            
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; }}
             .concept-body {{ color: #4a5568; font-size: 0.98em; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; }}
