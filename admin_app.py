@@ -13,7 +13,6 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?forma
 @st.cache_data(ttl=60)
 def load_data(url):
     try:
-        # 사진에 확인된 컬럼명: 구분, 개념, 문제, 정답, 출제
         df = pd.read_csv(url)
         return df.fillna("")
     except Exception:
@@ -21,52 +20,39 @@ def load_data(url):
 
 df = load_data(csv_url)
 
-# 3. 디자인 수정 (내장 마크다운 표가 잘 보이도록 조정)
+# 3. 디자인 수정 (인쇄 최적화 및 표 스타일)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
     
     .print-area { font-family: 'Noto Sans KR', sans-serif; }
     
-    /* 전체 표 레이아웃 */
-    .custom-row {
-        display: flex;
-        border-bottom: 1px solid #aaa;
-        min-height: 100px;
-    }
-    .custom-cell {
-        padding: 12px;
-        border-left: 1px solid #aaa;
-        word-break: break-all;
-    }
-    .header-row {
+    /* 헤더 스타일 */
+    .header-box {
         background-color: #e8f0f2;
         font-weight: bold;
         text-align: center;
         border-top: 2px solid #333;
+        border-bottom: 1px solid #aaa;
+        padding: 10px 0;
+        margin-bottom: 10px;
     }
     
-    /* 너비 설정 */
-    .col-1 { width: 30%; border-left: 1px solid #aaa; }
-    .col-2 { width: 60%; border-left: 1px solid #aaa; }
-    .col-3 { width: 10%; border-left: 1px solid #aaa; border-right: 1px solid #aaa; }
-
-    .category-title { font-weight: bold; display: block; margin-bottom: 8px; font-size: 15px; color: #000; }
-    .ans-box { 
-        margin-top: 10px; 
-        padding: 10px; 
-        background-color: #f8f9fa; 
-        border-left: 4px solid #007bff;
-        font-weight: bold;
-    }
-
     /* 셀 내부 마크다운 표 스타일 강제 적용 */
     table { border-collapse: collapse; width: 100% !important; margin: 5px 0; }
-    th, td { border: 1px solid #ddd !important; padding: 4px !important; }
+    th, td { border: 1px solid #ddd !important; padding: 8px !important; font-size: 13px; }
+    th { background-color: #f9f9f9; }
+
+    /* 정답 텍스트 강조 */
+    .ans-text {
+        margin-top: 15px;
+        display: block;
+    }
 
     @media print {
         header, footer, .stButton, [data-testid="stHeader"], [data-testid="stSidebar"] { display: none !important; }
         .main .block-container { padding: 0 !important; }
+        .stMarkdown { page-break-inside: avoid; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -79,14 +65,11 @@ if df is not None:
 
     st.markdown("---")
 
-    # 헤더 출력
-    st.markdown("""
-        <div class="custom-row header-row">
-            <div class="custom-cell col-1">개념</div>
-            <div class="custom-cell col-2">문제 및 정답</div>
-            <div class="custom-cell col-3">출제</div>
-        </div>
-    """, unsafe_allow_html=True)
+    # 헤더 출력 (너비 비율 4.5 : 4.5 : 1)
+    h_col1, h_col2, h_col3 = st.columns([4.5, 4.5, 1])
+    with h_col1: st.markdown('<div class="header-box">개념</div>', unsafe_allow_html=True)
+    with h_col2: st.markdown('<div class="header-box">문제 및 정답</div>', unsafe_allow_html=True)
+    with h_col3: st.markdown('<div class="header-box">출제</div>', unsafe_allow_html=True)
 
     # 데이터 행 출력
     for _, row in df.iterrows():
@@ -98,16 +81,20 @@ if df is not None:
 
         if not cat and not concept: continue
 
-        # 3열 구성을 컬럼 객체로 구현하여 마크다운 표가 작동하게 함
-        col1, col2, col3 = st.columns([3, 6, 1])
+        # 행 시작 (1대1 비율 조정을 위해 4.5, 4.5, 1 할당)
+        col1, col2, col3 = st.columns([4.5, 4.5, 1])
 
         with col1:
             st.markdown(f"**{cat}**")
-            st.markdown(concept)
+            # unsafe_allow_html=True를 통해 마크다운 안의 <br> 작동
+            st.markdown(concept, unsafe_allow_html=True)
+            
         with col2:
-            st.markdown(problem)
-            st.info(f"**정답:** \n{answer}")
+            st.markdown(problem, unsafe_allow_html=True)
+            # 파란 배경 제거 및 단순 텍스트 출력
+            st.markdown(f"<span class='ans-text'>**정답:**<br>{answer}</span>", unsafe_allow_html=True)
+            
         with col3:
             st.markdown(f"<div style='text-align:center;'>{info}</div>", unsafe_allow_html=True)
         
-        st.markdown("---") # 행 구분선
+        st.markdown("<hr style='margin: 10px 0; border: 0.5px solid #eee;'>", unsafe_allow_html=True) # 행 구분선
