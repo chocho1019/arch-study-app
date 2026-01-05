@@ -13,6 +13,7 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?forma
 @st.cache_data(ttl=60)
 def load_data(url):
     try:
+        # 시트 컬럼명 확인: 구분, 개념, 문제, 정답, 출제
         df = pd.read_csv(url)
         return df.fillna("")
     except Exception:
@@ -20,39 +21,56 @@ def load_data(url):
 
 df = load_data(csv_url)
 
-# 3. 디자인 수정 (인쇄 최적화 및 표 스타일)
+# 3. 디자인 수정 (세로선 추가 및 비율 조정)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
     
-    .print-area { font-family: 'Noto Sans KR', sans-serif; }
+    .print-area { font-family: 'Noto Sans KR', sans-serif; width: 100%; }
+    
+    /* 전체 표 레이아웃 */
+    .main-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        border: 1px solid #333;
+    }
+    
+    /* 셀 공통 스타일 (세로선 포함) */
+    .main-table th, .main-table td {
+        border: 1px solid #aaa;
+        padding: 12px;
+        vertical-align: top;
+        word-break: break-all;
+        line-height: 1.6;
+    }
     
     /* 헤더 스타일 */
-    .header-box {
-        background-color: #e8f0f2;
+    .main-table th {
+        background-color: #e8f0f2 !important;
         font-weight: bold;
         text-align: center;
-        border-top: 2px solid #333;
-        border-bottom: 1px solid #aaa;
-        padding: 10px 0;
-        margin-bottom: 10px;
+        border-bottom: 2px solid #333;
     }
     
-    /* 셀 내부 마크다운 표 스타일 강제 적용 */
-    table { border-collapse: collapse; width: 100% !important; margin: 5px 0; }
-    th, td { border: 1px solid #ddd !important; padding: 8px !important; font-size: 13px; }
-    th { background-color: #f9f9f9; }
+    /* 너비 설정 (6:4 비율 근사치) */
+    .col-concept { width: 54%; }
+    .col-problem { width: 36%; font-size: 0.9em; } /* 개념 대비 90% 크기 */
+    .col-info { width: 10%; text-align: center; }
 
-    /* 정답 텍스트 강조 */
-    .ans-text {
-        margin-top: 15px;
-        display: block;
-    }
+    /* 셀 내부 요소 스타일 */
+    .category-title { font-weight: bold; display: block; margin-bottom: 8px; font-size: 1.1em; color: #000; }
+    .ans-text { margin-top: 15px; display: block; font-weight: bold; }
+
+    /* 셀 내부 마크다운 표 스타일 */
+    .main-table td table { border-collapse: collapse; width: 100% !important; margin: 5px 0; }
+    .main-table td table td, .main-table td table th { border: 1px solid #ddd !important; padding: 4px !important; }
 
     @media print {
         header, footer, .stButton, [data-testid="stHeader"], [data-testid="stSidebar"] { display: none !important; }
         .main .block-container { padding: 0 !important; }
-        .stMarkdown { page-break-inside: avoid; }
+        .main-table { page-break-inside: auto; }
+        tr { page-break-inside: avoid; page-break-after: auto; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -65,36 +83,35 @@ if df is not None:
 
     st.markdown("---")
 
-    # 헤더 출력 (너비 비율 4.5 : 4.5 : 1)
-    h_col1, h_col2, h_col3 = st.columns([4.5, 4.5, 1])
-    with h_col1: st.markdown('<div class="header-box">개념</div>', unsafe_allow_html=True)
-    with h_col2: st.markdown('<div class="header-box">문제 및 정답</div>', unsafe_allow_html=True)
-    with h_col3: st.markdown('<div class="header-box">출제</div>', unsafe_allow_html=True)
+    # 4. HTML 표 생성
+    table_html = '<div class="print-area"><table class="main-table">'
+    table_html += '<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제</th><th class="col-info">출제</th></tr></thead><tbody>'
 
-    # 데이터 행 출력
     for _, row in df.iterrows():
         cat = str(row.get('구분', '')).strip()
-        concept = str(row.get('개념', '')).strip()
-        problem = str(row.get('문제', '')).strip()
-        answer = str(row.get('정답', '')).strip()
-        info = str(row.get('출제', '')).strip()
+        concept = str(row.get('개념', '')).strip().replace('\n', '<br>')
+        problem = str(row.get('문제', '')).strip().replace('\n', '<br>')
+        answer = str(row.get('정답', '')).strip().replace('\n', '<br>')
+        info = str(row.get('출제', '')).strip().replace('\n', '<br>')
 
         if not cat and not concept: continue
 
-        # 행 시작 (1대1 비율 조정을 위해 4.5, 4.5, 1 할당)
-        col1, col2, col3 = st.columns([4.5, 4.5, 1])
+        # 행 조립
+        table_html += f"""
+        <tr>
+            <td class="col-concept">
+                <span class="category-title">{cat}</span>
+                {concept}
+            </td>
+            <td class="col-problem">
+                {problem}
+                <span class="ans-text">정답:<br>{answer}</span>
+            </td>
+            <td class="col-info">{info}</td>
+        </tr>
+        """
 
-        with col1:
-            st.markdown(f"**{cat}**")
-            # unsafe_allow_html=True를 통해 마크다운 안의 <br> 작동
-            st.markdown(concept, unsafe_allow_html=True)
-            
-        with col2:
-            st.markdown(problem, unsafe_allow_html=True)
-            # 파란 배경 제거 및 단순 텍스트 출력
-            st.markdown(f"<span class='ans-text'>**정답:**<br>{answer}</span>", unsafe_allow_html=True)
-            
-        with col3:
-            st.markdown(f"<div style='text-align:center;'>{info}</div>", unsafe_allow_html=True)
-        
-        st.markdown("<hr style='margin: 10px 0; border: 0.5px solid #eee;'>", unsafe_allow_html=True) # 행 구분선
+    table_html += '</tbody></table></div>'
+
+    # 표 렌더링
+    st.markdown(table_html, unsafe_allow_html=True)
