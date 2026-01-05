@@ -57,18 +57,6 @@ if df_raw is not None:
 
     df = filtered_df
 
-    # [수정 2] 인쇄 로직 개선: 상위 윈도우가 아닌 현재 데이터가 로드된 iframe의 내용을 인쇄하도록 함
-    if st.button("🖨️ PDF 인쇄/저장하기"):
-        components.html(
-            """
-            <script>
-                var iframe = window.parent.document.querySelector('iframe[title="streamlit.components.v1.components.html"]');
-                iframe.contentWindow.print();
-            </script>
-            """,
-            height=0,
-        )
-
     pk_col = next((c for c in df.columns if c.lower() == 'pk'), None)
     
     if pk_col is None:
@@ -109,7 +97,7 @@ if df_raw is not None:
             info = str(row.get('출제', '')).strip()
             freq_val = row.get('빈출', 0)
             
-            # [수정 1] 빈출 뱃지: 배경색 제거, 글자만 남김
+            # 빈출 뱃지: 배경 없이 글자만 남김
             freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal;">{freq_val}회</span>' if freq_val > 0 else ""
 
             raw_num_gu = row.get('숫구', '')
@@ -164,6 +152,24 @@ if df_raw is not None:
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }}
+            
+            /* 인쇄 제어 버튼 스타일 */
+            .print-button-container {{
+                padding: 10px 20px;
+                background: white;
+                border-bottom: 1px solid #eee;
+                display: block;
+            }}
+            .btn-print {{
+                background-color: #4CAF50;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+            }}
+            
             .header-box {{
                 display: flex; background-color: #f8f9fa;
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
@@ -195,14 +201,21 @@ if df_raw is not None:
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
+
             @media print {{
+                .print-button-container {{ display: none !important; }}
                 .header-box {{ position: static; }}
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; -webkit-print-color-adjust: exact; }}
                 .problem-col {{ background-color: white !important; }}
+                body {{ padding: 0; margin: 0; }}
             }}
         </style>
     </head>
     <body>
+        <div class="print-button-container">
+            <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
+            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 백지로 나올 경우 이 버튼을 클릭하세요.</span>
+        </div>
         <div class="header-box">
             <div style="width: 60%; border-right: 1px solid #dee2e6;">개념</div>
             <div style="width: 40%;">문제</div>
@@ -215,6 +228,7 @@ if df_raw is not None:
     """
 
     iframe_height = max(2000, len(df) * 150)
+    # Streamlit의 사이드바 버튼 대신 HTML 내부에 직접 인쇄 버튼을 배치하여 안정성을 확보했습니다.
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
