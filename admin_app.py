@@ -147,12 +147,25 @@ if df_raw is not None:
         </div>
         """
 
-    # 개념만 보기 활성화 여부에 따른 스타일 변수 설정
-    c_h_width = "100%" if only_concept else "60%"
-    p_h_display = "none" if only_concept else "block"
-    c_col_width = "100%" if only_concept else "60%"
-    c_col_border = "none" if only_concept else "1px solid #edf2f7"
-    p_col_display = "none" if only_concept else "flex"
+    # --- 핵심 수정 부분 시작: 개념만 보기 모드 스타일 정의 ---
+    # 2단 레이아웃 관련 CSS 변수
+    if only_concept:
+        main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
+        c_h_width = "100%"
+        p_h_display = "none"
+        c_col_width = "100%"
+        c_col_border = "none"
+        p_col_display = "none"
+        section_break_style = "break-inside: avoid; display: inline-block; width: 100%;"
+    else:
+        main_container_style = ""
+        c_h_width = "60%"
+        p_h_display = "block"
+        c_col_width = "60%"
+        c_col_border = "1px solid #edf2f7"
+        p_col_display = "flex"
+        section_break_style = "page-break-inside: avoid;"
+    # --- 핵심 수정 부분 끝 ---
 
     full_html_page = f"""
     <!DOCTYPE html>
@@ -194,12 +207,13 @@ if df_raw is not None:
             .header-box .concept-h {{ width: {c_h_width}; padding: 4px 12px; box-sizing: border-box; border-right: {c_col_border}; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
 
-            .main-container {{ text-align: left; }}
+            /* 메인 컨테이너에 2단 설정 동적 적용 */
+            .main-container {{ text-align: left; {main_container_style} }}
             
             .section-container {{ 
-                margin-bottom: 10px; 
+                margin-bottom: 15px; 
                 text-align: left; 
-                page-break-inside: avoid;
+                {section_break_style} /* 단 중간에서 잘림 방지 */
             }}
             
             .section-header {{
@@ -236,6 +250,8 @@ if df_raw is not None:
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; }}
                 .problem-col {{ background-color: #fcfcfc !important; }}
                 body {{ padding: 0; margin: 0; }}
+                /* 인쇄 시에도 2단 유지를 보장 */
+                .main-container {{ column-count: 2 !important; -webkit-column-count: 2 !important; }}
             }}
         </style>
     </head>
