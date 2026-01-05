@@ -21,72 +21,82 @@ def load_data(url):
 
 df = load_data(csv_url)
 
-st.title("📑 건축기사 요약 노트 (소카테고리 분리 모드)")
+st.title("📑 건축기사 요약 노트 (소카테고리 동기화 모드)")
 
 if df is not None:
     if st.button("🖨️ PDF 인쇄/저장하기"):
         components.html("<script>window.parent.print();</script>", height=0)
 
-    # 3. HTML/CSS 통합 생성
+    # 3. 데이터 가공 (pk를 기준으로 그룹화 아이디 생성)
+    def extract_sub_cat_id(pk):
+        parts = str(pk).split('-')
+        if len(parts) >= 3:
+            return "-".join(parts[:3]) # A-02-01 형태 추출
+        return "ETC"
+
+    df['sub_cat_id'] = df['pk'].apply(extract_sub_cat_id)
+    
+    # HTML 생성을 위한 변수
     md_extensions = ['tables', 'fenced_code', 'nl2br']
-    concept_list_html = ""
-    problem_list_html = ""
+    sections_html = ""
 
-    for _, row in df.iterrows():
-        # 데이터 추출
-        sub_cat = str(row.get('소카테고리', '')).strip()
-        num_val_raw = str(row.get('숫자', '')).strip()
-        cat = str(row.get('구분', '')).strip()
-        concept_raw = str(row.get('개념', '')).strip()
-        problem_raw = str(row.get('문제', '')).strip()
-        answer_raw = str(row.get('정답', '')).strip()
-        info = str(row.get('출제', '')).strip()
-
-        # 숫자 가공 로직
-        raw_num = row.get('숫자', '')
-        try:
-            num_val = str(int(float(raw_num))) if str(raw_num).strip() and str(raw_num) != "nan" else str(raw_num).strip()
-        except:
-            num_val = str(raw_num).strip()
-
-        if num_val and num_val != "nan":
-            num_display = f"{num_val})" if ')' not in num_val else num_val
-        else:
-            num_display = ""
-
-        # 왼쪽: 개념 블록
-        if cat or concept_raw:
-            c_body = markdown.markdown(concept_raw, extensions=md_extensions)
+    # 소카테고리 ID 그룹별로 반복
+    for sub_id, group in df.groupby('sub_cat_id', sort=False):
+        group_concept_html = ""
+        group_problem_html = ""
+        
+        # 그룹 내에서 데이터 추출
+        for _, row in group.iterrows():
+            sub_cat_name = str(row.get('소카테고리', '')).strip()
+            cat = str(row.get('구분', '')).strip()
+            concept_raw = str(row.get('개념', '')).strip()
+            problem_raw = str(row.get('문제', '')).strip()
+            answer_raw = str(row.get('정답', '')).strip()
+            info = str(row.get('출제', '')).strip()
             
-            # [수정 로직] 숫자(num_val)가 "1"인 경우에만 소카테고리 박스를 생성합니다.
-            if num_val == "1" and sub_cat:
-                sub_cat_html = f'<div class="sub-cat-box">{sub_cat}</div>'
-            else:
-                sub_cat_html = ""
-            
-            concept_list_html += f"""
-            <div class="content-block">
-                {sub_cat_html}
-                <div class="concept-row">
+            # 숫자 가공
+            raw_num = row.get('숫자', '')
+            try:
+                num_val = str(int(float(raw_num))) if str(raw_num).strip() and str(raw_num) != "nan" else str(raw_num).strip()
+            except:
+                num_val = str(raw_num).strip()
+            num_display = f"{num_val})" if num_val and ')' not in num_val else (f"{num_val}" if num_val else "")
+
+            # 왼쪽: 개념 블록 생성
+            if cat or concept_raw:
+                c_body = markdown.markdown(concept_raw, extensions=md_extensions)
+                # 숫자 1일 때만 소카테고리 헤더 표시
+                sub_cat_header = f'<div class="sub-cat-box">{sub_cat_name}</div>' if num_val == "1" and sub_cat_name else ""
+                
+                group_concept_html += f"""
+                <div class="content-block">
+                    {sub_cat_header}
                     <div class="category-title">{num_display} {cat}</div>
                     <div class="concept-body">{c_body}</div>
                 </div>
-            </div>
-            """
+                """
 
-        # 오른쪽: 문제 블록
-        if problem_raw:
-            p_body = markdown.markdown(problem_raw, extensions=md_extensions)
-            a_body = markdown.markdown(answer_raw, extensions=md_extensions)
-            info_tag = f'<div class="info-tag">[{info} 출제]</div>' if info else ""
-            problem_list_html += f"""
-            <div class="content-block" style="font-size: 0.9em;">
-                {info_tag}
-                <div class="problem-body">{p_body}</div>
-                <div class="ans-label">정답:</div>
-                <div class="answer-body">{a_body}</div>
-            </div>
-            """
+            # 오른쪽: 문제 블록 생성
+            if problem_raw:
+                p_body = markdown.markdown(problem_raw, extensions=md_extensions)
+                a_body = markdown.markdown(answer_raw, extensions=md_extensions)
+                info_tag = f'<div class="info-tag">[{info} 출제]</div>' if info else ""
+                group_problem_html += f"""
+                <div class="content-block" style="font-size: 0.9em;">
+                    {info_tag}
+                    <div class="problem-body">{p_body}</div>
+                    <div class="ans-label">정답:</div>
+                    <div class="answer-body">{a_body}</div>
+                </div>
+                """
+
+        # 한 소카테고리 그룹을 하나의 행(row)으로 묶어서 추가
+        sections_html += f"""
+        <div class="sub-section">
+            <div class="column concept-col">{group_concept_html}</div>
+            <div class="column problem-col">{group_problem_html}</div>
+        </div>
+        """
 
     # 4. 전체 HTML 구조 정의
     full_html_page = f"""
@@ -102,12 +112,24 @@ if df is not None:
                 font-weight: bold; text-align: center;
                 position: sticky; top: 0; z-index: 10;
             }}
-            .header-box div {{ padding: 10px; }}
-            .main-wrapper {{ display: flex; width: 100%; align-items: flex-start; }}
+            .header-box div {{ padding: 10px; box-sizing: border-box; }}
+            
+            /* 소카테고리별 섹션 묶음 */
+            .sub-section {{ 
+                display: flex; 
+                width: 100%; 
+                border-bottom: 2px solid #444; /* 소카테고리 구분선 */
+                page-break-inside: auto;
+            }}
+            
             .column {{ display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }}
             .concept-col {{ width: 60%; border-right: 1px solid #aaa; }}
-            .problem-col {{ width: 40%; background-color: #fcfcfc; min-height: 100vh; }}
-            .content-block {{ width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px dashed #ddd; page-break-inside: avoid; }}
+            .problem-col {{ width: 40%; background-color: #fcfcfc; }}
+            
+            .content-block {{ 
+                width: 100%; margin-bottom: 20px; padding-bottom: 10px; 
+                border-bottom: 1px dashed #ddd; page-break-inside: avoid; 
+            }}
             .sub-cat-box {{
                 display: inline-block; background-color: #2D3748; color: white;
                 padding: 2px 8px; font-size: 0.85em; border-radius: 4px;
@@ -117,12 +139,14 @@ if df is not None:
             .concept-body {{ padding-left: 5px; }}
             .info-tag {{ color: #718096; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }}
             .ans-label {{ font-weight: bold; color: #e53e3e; margin-top: 10px; font-size: 0.9em; }}
+            
             table {{ border-collapse: collapse; width: 100%; margin: 10px 0; }}
             th, td {{ border: 1px solid #cbd5e0; padding: 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #edf2f7; }}
+
             @media print {{
                 .header-box {{ position: static; }}
-                .sub-cat-box {{ background-color: #333 !important; color: white !important; -webkit-print-color-adjust: exact; }}
+                .sub-section {{ page-break-after: auto; }}
                 .problem-col {{ background-color: white !important; -webkit-print-color-adjust: exact; }}
             }}
         </style>
@@ -132,15 +156,14 @@ if df is not None:
             <div style="width: 60%; border-right: 1px solid #aaa;">개념 요약</div>
             <div style="width: 40%;">관련 문제 및 정답</div>
         </div>
-        <div class="main-wrapper">
-            <div class="column concept-col">{concept_list_html}</div>
-            <div class="column problem-col">{problem_list_html}</div>
+        <div class="main-container">
+            {sections_html}
         </div>
     </body>
     </html>
     """
 
-    iframe_height = max(2000, len(df) * 150)
+    iframe_height = max(2000, len(df) * 180)
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
