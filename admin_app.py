@@ -42,25 +42,27 @@ if df is not None:
         answer_raw = str(row.get('정답', '')).strip()
         info = str(row.get('출제', '')).strip()
 
-        # --- [오류 수정 지점] 들여쓰기 정렬 시작 ---
+        # 숫자 가공 로직
         raw_num = row.get('숫자', '')
         try:
-            # 데이터가 숫자라면 정수로 변환하여 .0 제거
             num_val = str(int(float(raw_num))) if str(raw_num).strip() and str(raw_num) != "nan" else str(raw_num).strip()
         except:
             num_val = str(raw_num).strip()
 
         if num_val and num_val != "nan":
-            # 숫자 뒤에 )를 붙여줍니다.
             num_display = f"{num_val})" if ')' not in num_val else num_val
         else:
             num_display = ""
-        # --- [오류 수정 지점] 들여쓰기 정렬 끝 ---
 
         # 왼쪽: 개념 블록
         if cat or concept_raw:
             c_body = markdown.markdown(concept_raw, extensions=md_extensions)
-            sub_cat_html = f'<div class="sub-cat-box">{sub_cat}</div>' if sub_cat else ""
+            
+            # [수정 로직] 숫자(num_val)가 "1"인 경우에만 소카테고리 박스를 생성합니다.
+            if num_val == "1" and sub_cat:
+                sub_cat_html = f'<div class="sub-cat-box">{sub_cat}</div>'
+            else:
+                sub_cat_html = ""
             
             concept_list_html += f"""
             <div class="content-block">
