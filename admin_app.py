@@ -22,7 +22,7 @@ def load_data(url):
 
 df = load_data(csv_url)
 
-st.title("건축기사 요약 노트 (계층 디자인 모드)")
+st.title("건축기사 요약 노트 (소카테고리 번호 모드)")
 
 if df is not None:
     if st.button("🖨️ PDF 인쇄/저장하기"):
@@ -51,11 +51,23 @@ if df is not None:
         group_concept_html = ""
         group_problem_html = ""
         
-        # 그룹의 첫 번째 행에서 카테고리 명칭 추출
+        # 그룹의 첫 번째 행에서 데이터 추출
         first_row = group.iloc[0]
-        main_cat = str(first_row.get('대카테고리', '')).strip()
-        sub_cat = str(first_row.get('소카테고리', '')).strip()
-        category_title = f"{main_cat} / {sub_cat}" if main_cat else sub_cat
+        sub_cat_name = str(first_row.get('소카테고리', '')).strip()
+        
+        # [수정 지점] '숫소' 열 처리
+        sub_num_raw = str(first_row.get('숫소', '')).strip()
+        try:
+            # 소수점 제거 (1.0 -> 1)
+            sub_num = str(int(float(sub_num_raw))) if sub_num_raw and sub_num_raw != "nan" else ""
+        except:
+            sub_num = sub_num_raw
+            
+        # 대카테고리 제외, '숫소. 소카테고리' 형식으로 제목 생성
+        if sub_num:
+            category_title = f"{sub_num}. {sub_cat_name}"
+        else:
+            category_title = sub_cat_name
 
         for _, row in group.iterrows():
             cat = str(row.get('구분', '')).strip()
@@ -95,7 +107,7 @@ if df is not None:
                 </div>
                 """
 
-        # 전체 섹션 구성 (헤더 + 내용)
+        # 전체 섹션 구성
         sections_html += f"""
         <div class="section-container">
             <div class="section-header">{category_title}</div>
@@ -113,8 +125,6 @@ if df is not None:
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }}
-            
-            /* 상단 헤더 */
             .header-box {{
                 display: flex; background-color: #f8f9fa;
                 border-top: 3px solid #2D3748; border-bottom: 1px solid #dee2e6;
@@ -122,31 +132,20 @@ if df is not None:
                 position: sticky; top: 0; z-index: 100;
             }}
             .header-box div {{ padding: 12px; box-sizing: border-box; }}
-
-            /* 섹션 전체 구조 */
             .section-container {{ margin-bottom: 40px; }}
-            
-            /* 소카테고리 헤더 (대카 / 소카) */
             .section-header {{
                 width: 100%; background-color: #edf2f7;
-                padding: 8px 20px; font-weight: bold; font-size: 0.95em;
+                padding: 8px 20px; font-weight: bold; font-size: 1.0em;
                 color: #2d3748; border-left: 5px solid #2d3748;
                 box-sizing: border-box; margin-top: 20px;
             }}
-
             .sub-section {{ display: flex; width: 100%; page-break-inside: auto; }}
-            
-            /* 컬럼 설정 */
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }}
-            .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }} /* 들여쓰기 효과 */
+            .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; }}
-            
-            /* 개별 콘텐츠 블록 */
             .content-block {{ width: 100%; margin-bottom: 25px; page-break-inside: avoid; }}
             .category-title {{ font-weight: bold; font-size: 1.15em; color: #1a202c; margin-bottom: 8px; }}
             .concept-body {{ color: #4a5568; font-size: 0.98em; }}
-            
-            /* 문제 영역 스타일 */
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; }}
             .ans-label {{ 
@@ -156,13 +155,10 @@ if df is not None:
                 border: 1px solid #feb2b2;
             }}
             .answer-body {{ color: #2d3748; padding-left: 2px; }}
-
-            /* 테이블 디자인 개선 */
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
-
             @media print {{
                 .header-box {{ position: static; }}
                 .section-header {{ background-color: #edf2f7 !important; -webkit-print-color-adjust: exact; }}
