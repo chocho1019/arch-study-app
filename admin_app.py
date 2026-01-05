@@ -34,71 +34,78 @@ st.markdown("""
         border-collapse: collapse;
         display: table;
         table-layout: fixed;
+        margin-bottom: 20px;
     }
 
-    thead { display: table-header-group; } 
+    /* 헤더 스타일 */
+    .print-table th {
+        background-color: #f1f3f5 !important;
+        font-weight: bold;
+        text-align: center;
+        border: 1px solid #aaa;
+        padding: 6px 10px;
+        height: 35px;
+    }
 
-    .print-table th, .print-table td {
+    .print-table td {
         border: 1px solid #aaa;
         padding: 10px;
         vertical-align: top;
         overflow-wrap: break-word;
     }
 
-    /* 헤더 높이 및 스타일 */
-    .print-table th {
-        background-color: #e8f0f2 !important;
-        font-weight: bold;
-        text-align: center;
-        border-top: 2px solid #333;
-        padding: 4px 10px;
-        height: 30px;
-    }
-
-    /* --- 카테고리 스타일 추가 --- */
-    /* 대카테고리: 진한 배경, 흰색 글씨 */
+    /* --- 대카테고리: 진한 회색 배경, 흰색 글씨 --- */
     .row-main-cat {
-        background-color: #4A5568 !important;
-        color: white !important;
-        font-size: 1.2em;
-        font-weight: bold;
-        text-align: center;
+        background-color: #343a40 !important; /* 더 진한 회색 */
+        color: #ffffff !important;
+        text-align: left;
     }
-    .row-main-cat td { border: 1px solid #2D3748 !important; padding: 8px !important; }
+    .row-main-cat td {
+        padding: 12px 15px !important;
+        font-size: 1.25em !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.5px;
+        border: 1px solid #212529 !important;
+    }
 
-    /* 소카테고리: 연한 배경, 들여쓰기 효과 */
+    /* --- 소카테고리: 연한 회색 배경, 파란색 포인트 --- */
     .row-sub-cat {
-        background-color: #F7FAFC !important;
-        color: #2D3748 !important;
-        font-weight: bold;
-        font-size: 1.05em;
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        text-align: left;
     }
-    .row-sub-cat td { border: 1px solid #CBD5E0 !important; padding: 6px 20px !important; }
+    .row-sub-cat td {
+        padding: 10px 20px !important;
+        font-size: 1.1em !important;
+        font-weight: 600 !important;
+        border: 1px solid #dee2e6 !important;
+        border-left: 5px solid #495057 !important; /* 좌측 포인트 선 */
+    }
 
-    /* 일반 데이터 행 스타일 */
+    /* 일반 데이터 스타일 */
     .col-concept { width: 60%; }
-    .col-problem { width: 40%; font-size: 0.9em; }
+    .col-problem { width: 40%; font-size: 0.95em; line-height: 1.6; }
 
-    .category-title { font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #eee; margin-bottom: 8px; display: block; color: #000; }
-    .info-tag { display: inline-block; color: #888; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }
-    .ans-label { font-weight: bold; color: #333; margin-top: 10px; display: block; }
+    .category-title { font-weight: bold; font-size: 1.1em; color: #000; margin-bottom: 8px; display: block; }
+    .info-tag { color: #868e96; font-weight: bold; font-size: 0.85em; margin-bottom: 8px; display: block; }
+    .ans-label { font-weight: bold; color: #d9480f; margin-top: 12px; display: block; }
 
-    /* 내부 마크다운 표 스타일 */
-    .print-table td table { border-collapse: collapse; width: 100% !important; margin: 5px 0; border: 1px solid #ddd; }
+    /* 내부 표(Markdown Table) 스타일 */
+    .print-table td table { border-collapse: collapse; width: 100% !important; margin: 8px 0; }
     .print-table td table td, .print-table td table th { 
-        border: 1px solid #ddd !important; 
-        padding: 4px !important; 
-        font-size: 12px; 
-        background-color: #ffffff !important; 
+        border: 1px solid #dee2e6 !important; 
+        padding: 5px !important; 
+        font-size: 0.9em; 
         text-align: center !important; 
     }
+    .print-table td table th { background-color: #f8f9fa !important; }
 
     @media print {
         header, footer, .stButton, [data-testid="stHeader"], [data-testid="stSidebar"] { display: none !important; }
         .main .block-container { padding: 0 !important; margin: 0 !important; }
         tr { page-break-inside: avoid; }
-        .row-main-cat { -webkit-print-color-adjust: exact; } /* 인쇄 시 배경색 유지 */
-        .row-sub-cat { -webkit-print-color-adjust: exact; }
+        .row-main-cat { -webkit-print-color-adjust: exact; background-color: #343a40 !important; color: white !important; }
+        .row-sub-cat { -webkit-print-color-adjust: exact; background-color: #e9ecef !important; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -117,42 +124,11 @@ if df is not None:
     for _, row in df.iterrows():
         cat = str(row.get('구분', '')).strip()
         concept_raw = str(row.get('개념', '')).strip()
+        problem_raw = str(row.get('문제', '')).strip()
         
-        # --- 카테고리 판별 로직 ---
-        # 1. 대카테고리 (예: I. 한국건축사)
-        if re.match(r'^[IVX]+\.', cat) and not concept_raw:
+        # --- 카테고리 판별 로직 강화 ---
+        # 1. 대카테고리 (I. , II. 등 로마자로 시작)
+        if re.match(r'^[IVX]+\.', cat):
             table_content += f'<tr class="row-main-cat"><td colspan="2">{cat}</td></tr>'
-            continue
-            
-        # 2. 소카테고리 (예: 1. 공포양식)
-        if re.match(r'^\d+\.', cat) and not concept_raw:
-            table_content += f'<tr class="row-sub-cat"><td colspan="2">{cat}</td></tr>'
-            continue
-
-        # 3. 일반 데이터 행
-        concept_html = markdown.markdown(concept_raw, extensions=md_extensions)
-        prob_html = markdown.markdown(str(row.get('문제', '')).strip(), extensions=md_extensions)
-        ans_html = markdown.markdown(str(row.get('정답', '')).strip(), extensions=md_extensions)
-        info = str(row.get('출제', '')).strip()
-
-        if not cat and not concept_html: continue
-
-        info_display = f'<span class="info-tag">[{info} 출제]</span><br>' if info else ""
-
-        row_html = (
-            f'<tr>'
-            f'<td class="col-concept"><span class="category-title">{cat}</span>{concept_html}</td>'
-            f'<td class="col-problem">{info_display}{prob_html}<span class="ans-label">정답:</span>{ans_html}</td>'
-            f'</tr>'
-        )
-        table_content += row_html
-
-    full_table_html = (
-        f'<table class="print-table">'
-        f'<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제 및 정답</th></tr></thead>'
-        f'<tbody>{table_content}</tbody></table>'
-    )
-
-    st.markdown(full_table_html, unsafe_allow_html=True)
-else:
-    st.error("데이터를 불러오지 못했습니다.")
+            # 대카테고리이면서 내용이 있는 경우를 위해 아래쪽을 skip하지 않고 처리하려면 조건을 조정해야 함.
+            # 여기서는 카테고리 전
