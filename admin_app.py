@@ -37,7 +37,6 @@ st.markdown("""
         margin-bottom: 20px;
     }
 
-    /* 헤더 스타일 */
     .print-table th {
         background-color: #f1f3f5 !important;
         font-weight: bold;
@@ -54,35 +53,31 @@ st.markdown("""
         overflow-wrap: break-word;
     }
 
-    /* --- 대카테고리: 진한 회색 배경, 흰색 글씨 --- */
+    /* 대카테고리: 진한 회색 배경 */
     .row-main-cat {
-        background-color: #343a40 !important; /* 더 진한 회색 */
+        background-color: #343a40 !important;
         color: #ffffff !important;
-        text-align: left;
     }
     .row-main-cat td {
         padding: 12px 15px !important;
         font-size: 1.25em !important;
         font-weight: 700 !important;
-        letter-spacing: -0.5px;
         border: 1px solid #212529 !important;
     }
 
-    /* --- 소카테고리: 연한 회색 배경, 파란색 포인트 --- */
+    /* 소카테고리: 연한 회색 배경 */
     .row-sub-cat {
         background-color: #e9ecef !important;
         color: #212529 !important;
-        text-align: left;
     }
     .row-sub-cat td {
         padding: 10px 20px !important;
         font-size: 1.1em !important;
         font-weight: 600 !important;
         border: 1px solid #dee2e6 !important;
-        border-left: 5px solid #495057 !important; /* 좌측 포인트 선 */
+        border-left: 5px solid #495057 !important;
     }
 
-    /* 일반 데이터 스타일 */
     .col-concept { width: 60%; }
     .col-problem { width: 40%; font-size: 0.95em; line-height: 1.6; }
 
@@ -90,7 +85,7 @@ st.markdown("""
     .info-tag { color: #868e96; font-weight: bold; font-size: 0.85em; margin-bottom: 8px; display: block; }
     .ans-label { font-weight: bold; color: #d9480f; margin-top: 12px; display: block; }
 
-    /* 내부 표(Markdown Table) 스타일 */
+    /* Markdown Table 스타일 */
     .print-table td table { border-collapse: collapse; width: 100% !important; margin: 8px 0; }
     .print-table td table td, .print-table td table th { 
         border: 1px solid #dee2e6 !important; 
@@ -125,10 +120,46 @@ if df is not None:
         cat = str(row.get('구분', '')).strip()
         concept_raw = str(row.get('개념', '')).strip()
         problem_raw = str(row.get('문제', '')).strip()
-        
-        # --- 카테고리 판별 로직 강화 ---
-        # 1. 대카테고리 (I. , II. 등 로마자로 시작)
-        if re.match(r'^[IVX]+\.', cat):
+        ans_raw = str(row.get('정답', '')).strip()
+        info = str(row.get('출제', '')).strip()
+
+        # 1. 대카테고리 판별 (로마자 I. II. 등) - 개념/문제 내용이 없는 경우만 해당 행으로 처리
+        if re.match(r'^[IVX]+\.', cat) and not concept_raw and not problem_raw:
             table_content += f'<tr class="row-main-cat"><td colspan="2">{cat}</td></tr>'
-            # 대카테고리이면서 내용이 있는 경우를 위해 아래쪽을 skip하지 않고 처리하려면 조건을 조정해야 함.
-            # 여기서는 카테고리 전
+            continue
+            
+        # 2. 소카테고리 판별 (숫자 1. 2. 등) - 개념/문제 내용이 없는 경우만 해당 행으로 처리
+        if re.match(r'^\d+\.', cat) and not concept_raw and not problem_raw:
+            table_content += f'<tr class="row-sub-cat"><td colspan="2">{cat}</td></tr>'
+            continue
+
+        # 3. 일반 데이터 행 처리
+        if not cat and not concept_raw:
+            continue
+
+        concept_html = markdown.markdown(concept_raw, extensions=md_extensions)
+        prob_html = markdown.markdown(problem_raw, extensions=md_extensions)
+        ans_html = markdown.markdown(ans_raw, extensions=md_extensions)
+        info_display = f'<span class="info-tag">[{info} 출제]</span>' if info else ""
+
+        row_html = (
+            f'<tr>'
+            f'<td class="col-concept"><span class="category-title">{cat}</span>{concept_html}</td>'
+            f'<td class="col-problem">{info_display}{prob_html}<span class="ans-label">정답:</span>{ans_html}</td>'
+            f'</tr>'
+        )
+        table_content += row_html
+
+    # 최종 테이블 조립 및 출력
+    if table_content:
+        full_table_html = (
+            f'<table class="print-table">'
+            f'<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제 및 정답</th></tr></thead>'
+            f'<tbody>{table_content}</tbody></table>'
+        )
+        st.markdown(full_table_html, unsafe_allow_html=True)
+    else:
+        st.warning("표시할 데이터가 없습니다. 데이터 로드 상태를 확인해주세요.")
+else:
+    st.error("데이터를 불러오지 못했습니다. Google Sheets URL을 확인해주세요.")
+    
