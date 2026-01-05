@@ -37,13 +37,22 @@ st.markdown("""
 st.title("📄 전자책 요약 노트 생성기 (관리자용)")
 
 # 2. 구글 시트 연결
-# 시트 URL (제공해주신 주소)
 url = "https://docs.google.com/spreadsheets/d/1eg3TnoILIHXCzf4fPCU6uqzZssLnFS2xHO5zD7N2c0g/edit?usp=sharing"
 
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    # 핵심 수정: worksheet='테스트용'을 명시하여 해당 탭의 데이터를 가져옵니다.
-    df = conn.read(spreadsheet=url, worksheet="테스트용")
+    
+    # [수정 포인트]
+    # 방법 1: 한글 이름 대신 탭 순서를 사용합니다. 
+    # 만약 '테스트용'이 왼쪽에서 6번째 탭이라면 번호는 5입니다 (0부터 시작).
+    # 정확한 번호를 모를 경우, 아래처럼 worksheet를 지정하지 않고 
+    # '테스트용' 탭을 시트의 가장 왼쪽(첫 번째)으로 옮긴 후 실행하면 가장 확실합니다.
+    
+    df = conn.read(spreadsheet=url, worksheet="테스트용") 
+    # 만약 위 코드가 계속 에러나면, 구글 시트에서 '테스트용' 탭을 맨 왼쪽으로 드래그하고
+    # 아래 코드로 변경하세요:
+    # df = conn.read(spreadsheet=url) 
+
 
     # 3. 인쇄 버튼
     if st.button("🖨️ PDF로 추출하기 (인쇄 창 열기)"):
