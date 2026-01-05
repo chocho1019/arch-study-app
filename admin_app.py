@@ -100,3 +100,4 @@ try:
 except Exception as e:
     st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
     st.info("시트의 탭 이름이 '테스트용'이 맞는지 확인해 주세요.")
+    
