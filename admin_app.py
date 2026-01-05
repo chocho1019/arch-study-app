@@ -19,13 +19,38 @@ def load_data(url):
     except Exception:
         return None
 
-df = load_data(csv_url)
+df_raw = load_data(csv_url)
 
-st.title("📑 건축기사 요약 노트 (독립 열 모드)")
+st.title("📑 건축기사 요약 노트 (필터 및 독립 열 모드)")
 
-if df is not None:
-    if st.button("🖨️ PDF 인쇄/저장하기"):
-        components.html("<script>window.parent.print();</script>", height=0)
+if df_raw is not None:
+    # --- 사이드바 필터 설정 ---
+    st.sidebar.header("🔍 데이터 필터")
+    
+    # 과목 필터 (예: 건축계획, 건축구조 등)
+    # 실제 구글 시트의 컬럼명에 맞춰 '과목' 부분을 수정하세요.
+    subject_list = ["전체"] + sorted(df_raw['과목'].unique().tolist()) if '과목' in df_raw.columns else ["전체"]
+    selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
+
+    # 대카테고리 필터 (예: 제1장, 한국건축사 등)
+    # 실제 구글 시트의 컬럼명에 맞춰 '대카테고리' 부분을 수정하세요.
+    category_list = ["전체"] + sorted(df_raw['대카테고리'].unique().tolist()) if '대카테고리' in df_raw.columns else ["전체"]
+    selected_category = st.sidebar.selectbox("대카테고리 선택", category_list)
+
+    # 데이터 필터링 적용
+    df = df_raw.copy()
+    if selected_subject != "전체":
+        df = df[df['과목'] == selected_subject]
+    if selected_category != "전체":
+        df = df[df['대카테고리'] == selected_category]
+
+    # 상단 버튼 영역
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("🖨️ PDF 인쇄/저장"):
+            components.html("<script>window.parent.print();</script>", height=0)
+    with col2:
+        st.write(f"현재 출력 항목: **{len(df)}** 개")
 
     # 3. HTML/CSS 통합 생성
     md_extensions = ['tables', 'fenced_code', 'nl2br']
@@ -63,7 +88,8 @@ if df is not None:
             </div>
             """
 
-    # 4. 전체 HTML 구조 정의 (인쇄 최적화)
+    # 4. 전체 HTML 구조 정의
+    # (내용 길이에 따라 높이가 가변적이므로 컨테이너 높이 설정을 위해 min-height 사용)
     full_html_page = f"""
     <!DOCTYPE html>
     <html>
@@ -96,11 +122,9 @@ if df is not None:
             .info-tag {{ color: #718096; font-weight: bold; font-size: 0.85em; margin-bottom: 5px; }}
             .ans-label {{ font-weight: bold; color: #e53e3e; margin-top: 10px; font-size: 0.9em; }}
             
-            /* 표 스타일 */
             table {{ border-collapse: collapse; width: 100%; margin: 10px 0; }}
             th, td {{ border: 1px solid #cbd5e0; padding: 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #edf2f7; }}
-            img {{ max-width: 100%; height: auto; }}
 
             @media print {{
                 .header-box {{ position: static; }}
@@ -121,8 +145,10 @@ if df is not None:
     </html>
     """
 
-    # 5. iframe으로 렌더링 (높이는 데이터 양에 따라 자동 조절되도록 크게 설정)
-    components.html(full_html_page, height=2000, scrolling=True)
+    # 내용의 양에 따라 height를 동적으로 조절하거나 충분히 큰 값을 줍니다.
+    iframe_height = max(1000, len(df) * 150) 
+    components.html(full_html_page, height=iframe_height, scrolling=True)
 
 else:
     st.error("데이터를 불러오지 못했습니다.")
+    
