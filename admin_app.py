@@ -113,11 +113,11 @@ else:
     
     for i, row in df.iterrows():
         # 데이터 추출 (컬럼명 공백 주의)
-        category = str(row['구분(카테고리)']).strip()
-        concept_content = str(row['개념 내용']).strip()
-        problem = str(row['관련 문제']).strip()
-        answer = str(row['정답 및 해설']).strip()
-        info = str(row['출제 정보']).strip()
+        category = str(row['구분']).strip()
+        concept_content = str(row['개념']).strip()
+        problem = str(row['문제']).strip()
+        answer = str(row['정답']).strip()
+        info = str(row['출제']).strip()
 
         # 데이터가 아예 없는 빈 행은 스킵
         if not category and not concept_content:
