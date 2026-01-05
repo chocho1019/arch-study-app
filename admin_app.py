@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
-import markdown  # 마크다운 변환 라이브러리 추가
 
 # 1. 페이지 설정
 st.set_page_config(layout="wide", page_title="건축기사 요약 노트 생성기")
@@ -14,6 +13,7 @@ csv_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?forma
 @st.cache_data(ttl=60)
 def load_data(url):
     try:
+        # 사진에 확인된 컬럼명: 구분, 개념, 문제, 정답, 출제
         df = pd.read_csv(url)
         return df.fillna("")
     except Exception:
@@ -21,42 +21,52 @@ def load_data(url):
 
 df = load_data(csv_url)
 
-# 3. 디자인 (표 내부의 표 스타일 추가)
+# 3. 디자인 수정 (내장 마크다운 표가 잘 보이도록 조정)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
     
     .print-area { font-family: 'Noto Sans KR', sans-serif; }
-    .report-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-    .report-table th, .report-table td { border: 1px solid #aaa; padding: 12px; vertical-align: top; line-height: 1.6; word-break: break-word; }
     
-    .report-table th { background-color: #e8f0f2 !important; font-weight: bold; text-align: center; color: #333; }
-    
-    /* 셀 내부 마크다운 표(Nested Table) 스타일 */
-    .report-table td table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 10px 0;
-        background-color: #fcfcfc;
+    /* 전체 표 레이아웃 */
+    .custom-row {
+        display: flex;
+        border-bottom: 1px solid #aaa;
+        min-height: 100px;
     }
-    .report-table td table th, .report-table td table td {
-        border: 1px solid #ddd !important;
-        padding: 6px !important;
-        font-size: 12px;
+    .custom-cell {
+        padding: 12px;
+        border-left: 1px solid #aaa;
+        word-break: break-all;
+    }
+    .header-row {
+        background-color: #e8f0f2;
+        font-weight: bold;
+        text-align: center;
+        border-top: 2px solid #333;
+    }
+    
+    /* 너비 설정 */
+    .col-1 { width: 30%; border-left: 1px solid #aaa; }
+    .col-2 { width: 60%; border-left: 1px solid #aaa; }
+    .col-3 { width: 10%; border-left: 1px solid #aaa; border-right: 1px solid #aaa; }
+
+    .category-title { font-weight: bold; display: block; margin-bottom: 8px; font-size: 15px; color: #000; }
+    .ans-box { 
+        margin-top: 10px; 
+        padding: 10px; 
+        background-color: #f8f9fa; 
+        border-left: 4px solid #007bff;
+        font-weight: bold;
     }
 
-    .col-concept { width: 35%; }
-    .col-combined { width: 55%; }
-    .col-info    { width: 10%; text-align: center; }
-
-    .category-title { font-weight: bold; display: block; margin-bottom: 8px; font-size: 15px; color: #000; border-bottom: 2px solid #e8f0f2; padding-bottom: 4px; }
-    .answer-text { font-weight: bold; color: #000; display: block; margin-top: 10px; padding: 5px; background-color: #f0f7f9; border-left: 3px solid #007bff; }
+    /* 셀 내부 마크다운 표 스타일 강제 적용 */
+    table { border-collapse: collapse; width: 100% !important; margin: 5px 0; }
+    th, td { border: 1px solid #ddd !important; padding: 4px !important; }
 
     @media print {
         header, footer, .stButton, [data-testid="stHeader"], [data-testid="stSidebar"] { display: none !important; }
-        .main .block-container { padding: 0 !important; margin: 0 !important; }
-        .report-table { page-break-inside: auto; }
-        tr { page-break-inside: avoid; page-break-after: auto; }
+        .main .block-container { padding: 0 !important; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -69,50 +79,35 @@ if df is not None:
 
     st.markdown("---")
 
-    table_rows = ""
-    # 마크다운 변환 옵션 설정 (표 문법 활성화)
-    md_configs = ['extra', 'nl2br']
+    # 헤더 출력
+    st.markdown("""
+        <div class="custom-row header-row">
+            <div class="custom-cell col-1">개념</div>
+            <div class="custom-cell col-2">문제 및 정답</div>
+            <div class="custom-cell col-3">출제</div>
+        </div>
+    """, unsafe_allow_html=True)
 
+    # 데이터 행 출력
     for _, row in df.iterrows():
         cat = str(row.get('구분', '')).strip()
-        
-        # [수정] 단순 replace 대신 markdown 라이브러리로 변환
-        concept_raw = str(row.get('개념', '')).strip()
-        concept_html = markdown.markdown(concept_raw, extensions=md_configs)
-        
-        prob_raw = str(row.get('문제', '')).strip()
-        prob_html = markdown.markdown(prob_raw, extensions=md_configs)
-        
-        ans_raw = str(row.get('정답', '')).strip()
-        ans_html = markdown.markdown(ans_raw, extensions=md_configs)
-        
+        concept = str(row.get('개념', '')).strip()
+        problem = str(row.get('문제', '')).strip()
+        answer = str(row.get('정답', '')).strip()
         info = str(row.get('출제', '')).strip()
 
-        if not cat and not concept_raw: continue
+        if not cat and not concept: continue
 
-        # 문제와 정답 합치기 (정답은 강조 스타일 적용)
-        combined_problem_html = f"{prob_html}<div class='answer-text'>{ans_html}</div>"
+        # 3열 구성을 컬럼 객체로 구현하여 마크다운 표가 작동하게 함
+        col1, col2, col3 = st.columns([3, 6, 1])
 
-        row_html = (
-            "<tr>"
-            f'<td class="col-concept"><span class="category-title">{cat}</span>{concept_html}</td>'
-            f'<td class="col-combined">{combined_problem_html}</td>'
-            f'<td class="col-info">{info}</td>'
-            "</tr>"
-        )
-        table_rows += row_html
-
-    full_table_html = (
-        '<div class="print-area">'
-        '<table class="report-table">'
-        '<thead><tr>'
-        '<th class="col-concept">개념</th>'
-        '<th class="col-combined">문제 및 정답</th>'
-        '<th class="col-info">출제</th>'
-        '</tr></thead>'
-        f'<tbody>{table_rows}</tbody>'
-        '</table>'
-        '</div>'
-    )
-
-    st.markdown(full_table_html, unsafe_allow_html=True)
+        with col1:
+            st.markdown(f"**{cat}**")
+            st.markdown(concept)
+        with col2:
+            st.markdown(problem)
+            st.info(f"**정답:** \n{answer}")
+        with col3:
+            st.markdown(f"<div style='text-align:center;'>{info}</div>", unsafe_allow_html=True)
+        
+        st.markdown("---") # 행 구분선
