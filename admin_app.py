@@ -2,17 +2,17 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import streamlit.components.v1 as components
 
-# 페이지 설정 (넓게 보기)
-st.set_page_config(layout="wide")
+# 페이지 설정
+st.set_page_config(layout="wide", page_title="전자책 요약 노트 생성기")
 
-# 1. CSS 설정 (이미지 1번처럼 표 디자인 + 인쇄 최적화)
+# 1. 디자인 (인쇄 및 화면용 CSS)
 st.markdown("""
     <style>
-    /* 화면에 보이는 표 스타일 */
     .report-table {
         width: 100%;
         border-collapse: collapse;
         font-family: 'Malgun Gothic', sans-serif;
+        margin-top: 20px;
     }
     .report-table th, .report-table td {
         border: 1px solid #d3d3d3;
@@ -25,11 +25,9 @@ st.markdown("""
         font-weight: bold;
         text-align: center;
     }
-    
-    /* 인쇄 시 설정 */
     @media print {
-        .no-print { display: none !important; } /* 버튼 등 숨기기 */
-        header, footer { visibility: hidden; }
+        .no-print { display: none !important; }
+        header, footer, [data-testid="stSidebar"] { display: none !important; }
         .report-table { border: 2px solid #000 !important; }
         th { background-color: #e0e0e0 !important; -webkit-print-color-adjust: exact; }
     }
@@ -39,48 +37,57 @@ st.markdown("""
 st.title("📄 전자책 요약 노트 생성기 (관리자용)")
 
 # 2. 구글 시트 연결
-# 'url' 부분에 복사한 시트 주소를 넣으세요.
+# 시트 URL (제공해주신 주소)
 url = "https://docs.google.com/spreadsheets/d/1eg3TnoILIHXCzf4fPCU6uqzZssLnFS2xHO5zD7N2c0g/edit?usp=sharing"
-conn = st.connection("gsheets", type=GSheetsConnection)
-df = conn.read(spreadsheet=url)
 
-# 3. 인쇄 버튼 (화면 상단 고정)
-if st.button("🖨️ PDF로 추출하기 (인쇄 창 열기)", help="브라우저 인쇄 창이 뜨면 'PDF로 저장'을 선택하세요."):
-    components.html("<script>window.parent.focus(); window.parent.print();</script>", height=0)
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    # 핵심 수정: worksheet='테스트용'을 명시하여 해당 탭의 데이터를 가져옵니다.
+    df = conn.read(spreadsheet=url, worksheet="테스트용")
 
-st.markdown("---")
+    # 3. 인쇄 버튼
+    if st.button("🖨️ PDF로 추출하기 (인쇄 창 열기)"):
+        components.html("<script>window.parent.focus(); window.parent.print();</script>", height=0)
 
-# 4. 이미지 1번 스타일의 HTML 표 생성
-html_code = """
-<table class="report-table">
-    <thead>
-        <tr>
-            <th style="width: 15%;">개념</th>
-            <th style="width: 35%;">내용 요약</th>
-            <th style="width: 25%;">문제</th>
-            <th style="width: 20%;">정답</th>
-            <th style="width: 5%;">출제</th>
-        </tr>
-    </thead>
-    <tbody>
-"""
+    st.markdown("---")
 
-for i, row in df.iterrows():
-    # 데이터의 줄바꿈(\n)을 HTML의 줄바꿈(<br>)으로 변경
-    concept_content = str(row['개념 내용']).replace('\n', '<br>')
-    answer_content = str(row['정답 및 해설']).replace('\n', '<br>')
-    
-    html_code += f"""
-        <tr>
-            <td style="font-weight:bold; text-align:center;">{row['구분(카테고리)']}</td>
-            <td>{concept_content}</td>
-            <td>{row['관련 문제']}</td>
-            <td>{answer_content}</td>
-            <td style="text-align:center; color:gray; font-size:12px;">{row['출제 정보']}</td>
-        </tr>
+    # 4. 시트 제목에 맞춘 HTML 표 생성
+    html_code = """
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">개념</th>
+                <th style="width: 35%;">내용 요약</th>
+                <th style="width: 25%;">문제</th>
+                <th style="width: 20%;">정답 및 해설</th>
+                <th style="width: 5%;">출제</th>
+            </tr>
+        </thead>
+        <tbody>
     """
 
-html_code += "</tbody></table>"
+    for i, row in df.iterrows():
+        # 시트의 컬럼명을 정확히 매칭 (스크린샷 기준)
+        # 데이터가 비어있을 경우를 대비해 str() 처리 및 공백 제거
+        category = str(row.get('구분(카테고리)', ''))
+        content  = str(row.get('개념 내용', '')).replace('\n', '<br>')
+        question = str(row.get('관련 문제', ''))
+        answer   = str(row.get('정답 및 해설', '')).replace('\n', '<br>')
+        info     = str(row.get('출제 정보', ''))
+        
+        html_code += f"""
+            <tr>
+                <td style="font-weight:bold; text-align:center;">{category}</td>
+                <td>{content}</td>
+                <td>{question}</td>
+                <td>{answer}</td>
+                <td style="text-align:center; color:gray; font-size:12px;">{info}</td>
+            </tr>
+        """
 
-# 화면에 HTML 표 렌더링
-st.markdown(html_code, unsafe_allow_html=True)
+    html_code += "</tbody></table>"
+    st.markdown(html_code, unsafe_allow_html=True)
+
+except Exception as e:
+    st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
+    st.info("시트의 탭 이름이 '테스트용'이 맞는지 확인해 주세요.")
