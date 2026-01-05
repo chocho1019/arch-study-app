@@ -147,10 +147,10 @@ if df_raw is not None:
         </div>
         """
 
-    # --- 핵심 수정 부분 시작: 개념만 보기 모드 스타일 정의 ---
-    # 2단 레이아웃 관련 CSS 변수
+    # --- 개념만 보기 모드 스타일 변수 설정 ---
     if only_concept:
         main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
+        header_box_display = "none"  # 헤더 숨김 처리
         c_h_width = "100%"
         p_h_display = "none"
         c_col_width = "100%"
@@ -159,13 +159,13 @@ if df_raw is not None:
         section_break_style = "break-inside: avoid; display: inline-block; width: 100%;"
     else:
         main_container_style = ""
+        header_box_display = "flex"  # 헤더 표시 처리
         c_h_width = "60%"
         p_h_display = "block"
         c_col_width = "60%"
         c_col_border = "1px solid #edf2f7"
         p_col_display = "flex"
         section_break_style = "page-break-inside: avoid;"
-    # --- 핵심 수정 부분 끝 ---
 
     full_html_page = f"""
     <!DOCTYPE html>
@@ -196,7 +196,8 @@ if df_raw is not None:
             .master-thead {{ display: table-header-group; }} 
             
             .header-box {{
-                display: flex; background-color: #f8f9fa;
+                display: {header_box_display}; /* 동적 표시 여부 */
+                background-color: #f8f9fa;
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
                 font-weight: bold; 
                 text-align: center; 
@@ -207,13 +208,12 @@ if df_raw is not None:
             .header-box .concept-h {{ width: {c_h_width}; padding: 4px 12px; box-sizing: border-box; border-right: {c_col_border}; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
 
-            /* 메인 컨테이너에 2단 설정 동적 적용 */
             .main-container {{ text-align: left; {main_container_style} }}
             
             .section-container {{ 
                 margin-bottom: 15px; 
                 text-align: left; 
-                {section_break_style} /* 단 중간에서 잘림 방지 */
+                {section_break_style}
             }}
             
             .section-header {{
@@ -246,11 +246,11 @@ if df_raw is not None:
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                .header-box {{ position: static; display: flex !important; }}
+                /* 인쇄 시에도 header-box의 display 속성이 동적 변수를 따르도록 유지 */
+                .header-box {{ position: static; display: {header_box_display} !important; }}
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; }}
                 .problem-col {{ background-color: #fcfcfc !important; }}
                 body {{ padding: 0; margin: 0; }}
-                /* 인쇄 시에도 2단 유지를 보장 */
                 .main-container {{ column-count: 2 !important; -webkit-column-count: 2 !important; }}
             }}
         </style>
