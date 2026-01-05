@@ -147,10 +147,11 @@ if df_raw is not None:
         </div>
         """
 
-    # --- 개념만 보기 모드 스타일 변수 설정 ---
+    # --- 핵심 로직: 개념만 보기 모드 변수 설정 ---
     if only_concept:
         main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
-        header_box_display = "none"  # 헤더 숨김 처리
+        header_box_display = "none"
+        print_column_count = "2"  # 인쇄 시 2단 적용
         c_h_width = "100%"
         p_h_display = "none"
         c_col_width = "100%"
@@ -159,7 +160,8 @@ if df_raw is not None:
         section_break_style = "break-inside: avoid; display: inline-block; width: 100%;"
     else:
         main_container_style = ""
-        header_box_display = "flex"  # 헤더 표시 처리
+        header_box_display = "flex"
+        print_column_count = "1"  # 인쇄 시 1단(기본) 적용
         c_h_width = "60%"
         p_h_display = "block"
         c_col_width = "60%"
@@ -196,7 +198,7 @@ if df_raw is not None:
             .master-thead {{ display: table-header-group; }} 
             
             .header-box {{
-                display: {header_box_display}; /* 동적 표시 여부 */
+                display: {header_box_display};
                 background-color: #f8f9fa;
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
                 font-weight: bold; 
@@ -246,12 +248,16 @@ if df_raw is not None:
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                /* 인쇄 시에도 header-box의 display 속성이 동적 변수를 따르도록 유지 */
+                /* 필터 상태에 따라 헤더 박스 표시 여부 결정 */
                 .header-box {{ position: static; display: {header_box_display} !important; }}
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; }}
                 .problem-col {{ background-color: #fcfcfc !important; }}
                 body {{ padding: 0; margin: 0; }}
-                .main-container {{ column-count: 2 !important; -webkit-column-count: 2 !important; }}
+                /* 동적으로 결정된 print_column_count 값을 인쇄 시 적용 */
+                .main-container {{ 
+                    column-count: {print_column_count} !important; 
+                    -webkit-column-count: {print_column_count} !important; 
+                }}
             }}
         </style>
     </head>
@@ -266,8 +272,8 @@ if df_raw is not None:
                 <tr>
                     <td style="padding: 0; border: none;">
                         <div class="header-box">
-                            <div class="concept-h">개념</div>
-                            <div class="problem-h">문제</div>
+                            <div class="concept-h">개념 요약</div>
+                            <div class="problem-h">관련 문제 및 정답</div>
                         </div>
                     </td>
                 </tr>
