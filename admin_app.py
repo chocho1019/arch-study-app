@@ -44,27 +44,34 @@ st.markdown("""
         overflow-wrap: break-word;
     }
 
+    /* 1. 헤더 높이 축소 (패딩 조절) */
     .print-table th {
         background-color: #e8f0f2 !important;
         font-weight: bold;
         text-align: center;
         border-top: 2px solid #333;
+        padding: 4px 10px; /* 기존 10px에서 대폭 축소 */
+        height: 30px;      /* 최소 높이 지정 */
     }
 
-    /* 비율 설정: 출제 7%, 문제 36%, 나머지 개념 57% */
-    .col-concept { width: 57%; }
-    .col-problem { width: 36%; font-size: 0.9em; }
-    .col-info { 
-        width: 7%; 
-        text-align: center; 
-        font-size: 0.8em; 
-        color: #888;
-    }
+    /* 2. 열 비율 재설정 (개념 60% : 문제 40%) */
+    .col-concept { width: 60%; }
+    .col-problem { width: 40%; font-size: 0.9em; }
 
     .category-title { font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #eee; margin-bottom: 8px; display: block; color: #000; }
+    
+    /* 문제 셀 내부 출제 정보 스타일 */
+    .info-tag { 
+        display: inline-block;
+        color: #888;
+        font-weight: bold;
+        font-size: 0.85em;
+        margin-bottom: 5px;
+    }
+    
     .ans-label { font-weight: bold; color: #333; margin-top: 10px; display: block; }
 
-    /* 내부 마크다운 표 스타일: 흰색 배경 및 가운데 정렬 */
+    /* 내부 마크다운 표 스타일 */
     .print-table td table { border-collapse: collapse; width: 100% !important; margin: 5px 0; border: 1px solid #ddd; }
     .print-table td table td, .print-table td table th { 
         border: 1px solid #ddd !important; 
@@ -103,23 +110,26 @@ if df is not None:
 
         if not cat and not concept_html: continue
 
+        # 출제 정보가 있을 경우 [정보 출제] 형태로 생성
+        info_display = f'<span class="info-tag">[{info} 출제]</span><br>' if info else ""
+
         row_html = (
             f'<tr>'
             f'<td class="col-concept"><span class="category-title">{cat}</span>{concept_html}</td>'
-            f'<td class="col-problem">{prob_html}<span class="ans-label">정답:</span>{ans_html}</td>'
-            f'<td class="col-info"><div style="margin-top:10px;">{info}</div></td>'
+            f'<td class="col-problem">'
+            f'{info_display}{prob_html}'
+            f'<span class="ans-label">정답:</span>{ans_html}'
+            f'</td>'
             f'</tr>'
         )
         table_content += row_html
 
-    # --- 여기서부터 누락된 부분을 보강했습니다 ---
     full_table_html = (
         f'<table class="print-table">'
-        f'<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제</th><th class="col-info">출제</th></tr></thead>'
+        f'<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제</th></tr></thead>'
         f'<tbody>{table_content}</tbody></table>'
     )
 
-    # 최종 출력
     st.markdown(full_table_html, unsafe_allow_html=True)
 else:
     st.error("데이터를 불러오지 못했습니다. Google Sheets URL을 확인해주세요.")
