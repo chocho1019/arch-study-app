@@ -172,7 +172,7 @@ if df_raw is not None:
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
             .master-thead {{ display: table-header-group; }} 
             
-            /* 첫 행 (고정 헤더): 요청하신 대로 '가운데 정렬' 유지 */
+            /* 첫 행 (고정 헤더): 상하 padding을 12px -> 4px로 축소하여 높이 감소 */
             .header-box {{
                 display: flex; background-color: #f8f9fa;
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
@@ -182,10 +182,9 @@ if df_raw is not None:
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }}
-            .header-box .concept-h {{ width: 60%; padding: 12px; box-sizing: border-box; border-right: 1px solid #dee2e6; }}
-            .header-box .problem-h {{ width: 40%; padding: 12px; box-sizing: border-box; }}
+            .header-box .concept-h {{ width: 60%; padding: 4px 12px; box-sizing: border-box; border-right: 1px solid #dee2e6; }}
+            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; }}
 
-            /* 본문 내용: 모두 '좌측 정렬' */
             .main-container {{ text-align: left; }}
             .section-container {{ margin-bottom: 10px; text-align: left; }}
             .section-header {{
@@ -211,9 +210,9 @@ if df_raw is not None:
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
             .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; }}
 
-            /* 표 내부 텍스트 정렬: 이미지에서 보였던 가운데 정렬 문제를 좌측 정렬로 수정 */
+            /* 마크다운 표 디자인: th와 td의 상하 padding을 10px -> 4px로 축소하여 첫 행 및 전체 높이 감소 */
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
-            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: left; }}
+            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
 
