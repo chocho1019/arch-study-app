@@ -30,6 +30,9 @@ if df_raw is not None:
     # --- 필터 영역 ---
     st.sidebar.header("🔍 필터 설정")
     
+    # 신규 필터: 개념만 보기
+    only_concept = st.sidebar.checkbox("개념만 보기")
+    
     subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
     selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
     
@@ -144,6 +147,13 @@ if df_raw is not None:
         </div>
         """
 
+    # 개념만 보기 활성화 여부에 따른 스타일 변수 설정
+    c_h_width = "100%" if only_concept else "60%"
+    p_h_display = "none" if only_concept else "block"
+    c_col_width = "100%" if only_concept else "60%"
+    c_col_border = "none" if only_concept else "1px solid #edf2f7"
+    p_col_display = "none" if only_concept else "flex"
+
     full_html_page = f"""
     <!DOCTYPE html>
     <html>
@@ -181,16 +191,15 @@ if df_raw is not None:
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }}
-            .header-box .concept-h {{ width: 60%; padding: 4px 12px; box-sizing: border-box; border-right: 1px solid #dee2e6; }}
-            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; }}
+            .header-box .concept-h {{ width: {c_h_width}; padding: 4px 12px; box-sizing: border-box; border-right: {c_col_border}; }}
+            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
 
             .main-container {{ text-align: left; }}
             
-            /* [중요] 소카테고리 섹션이 인쇄 시 잘리지 않도록 설정 */
             .section-container {{ 
                 margin-bottom: 10px; 
                 text-align: left; 
-                page-break-inside: avoid; /* 소카테고리 제목과 본문이 다른 페이지로 갈라지는 것을 방지 */
+                page-break-inside: avoid;
             }}
             
             .section-header {{
@@ -205,8 +214,8 @@ if df_raw is not None:
             }}
             .sub-section {{ display: flex; width: 100%; text-align: left; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
-            .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
-            .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; -webkit-print-color-adjust: exact; }}
+            .concept-col {{ width: {c_col_width}; border-right: {c_col_border}; padding-left: 30px; }}
+            .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_col_display}; -webkit-print-color-adjust: exact; }}
             
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
@@ -233,7 +242,7 @@ if df_raw is not None:
     <body>
         <div class="print-button-container">
             <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
-            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 소카테고리 제목과 본문이 한 페이지에 유지되도록 조정되었습니다.</span>
+            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 설정된 필터에 맞춰 인쇄됩니다.</span>
         </div>
         
         <table class="master-table">
