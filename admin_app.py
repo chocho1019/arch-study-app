@@ -22,7 +22,7 @@ def load_data(url):
 
 df = load_data(csv_url)
 
-st.title("건축기사 요약 노트 (소카테고리 번호 모드)")
+st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
 if df is not None:
     if st.button("🖨️ PDF 인쇄/저장하기"):
@@ -55,15 +55,13 @@ if df is not None:
         first_row = group.iloc[0]
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
         
-        # [수정 지점] '숫소' 열 처리
+        # '숫소' 열 처리
         sub_num_raw = str(first_row.get('숫소', '')).strip()
         try:
-            # 소수점 제거 (1.0 -> 1)
             sub_num = str(int(float(sub_num_raw))) if sub_num_raw and sub_num_raw != "nan" else ""
         except:
             sub_num = sub_num_raw
             
-        # 대카테고리 제외, '숫소. 소카테고리' 형식으로 제목 생성
         if sub_num:
             category_title = f"{sub_num}. {sub_cat_name}"
         else:
@@ -76,24 +74,33 @@ if df is not None:
             answer_raw = str(row.get('정답', '')).strip()
             info = str(row.get('출제', '')).strip()
             
-            raw_num = row.get('숫자', '')
+            # [수정 2] 개념 숫자('숫구') 처리 및 '1)' 양식 적용
+            raw_num_gu = row.get('숫구', '')
             try:
-                num_val = str(int(float(raw_num))) if str(raw_num).strip() and str(raw_num) != "nan" else str(raw_num).strip()
+                num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
             except:
-                num_val = str(raw_num).strip()
-            num_display = f"{num_val}." if num_val else ""
+                num_gu_val = str(raw_num_gu).strip()
+            num_gu_display = f"{num_gu_val})" if num_gu_val else ""
+
+            # [수정 4] 문제 숫자('숫문') 처리
+            raw_num_mun = row.get('숫문', '')
+            try:
+                num_mun_val = str(int(float(raw_num_mun))) if str(raw_num_mun).strip() and str(raw_num_mun) != "nan" else str(raw_num_mun).strip()
+            except:
+                num_mun_val = str(raw_num_mun).strip()
+            num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
             # 왼쪽: 개념 블록
             if cat or concept_raw:
                 c_body = markdown.markdown(concept_raw, extensions=md_extensions)
                 group_concept_html += f"""
                 <div class="content-block">
-                    <div class="category-title">{num_display} {cat}</div>
+                    <div class="category-title">{num_gu_display} {cat}</div>
                     <div class="concept-body">{c_body}</div>
                 </div>
                 """
 
-            # 오른쪽: 문제 블록
+            # 오른쪽: 문제 블록 [수정 3, 4 정답라벨 제거 및 문제 볼드체]
             if problem_raw:
                 p_body = markdown.markdown(problem_raw, extensions=md_extensions)
                 a_body = markdown.markdown(answer_raw, extensions=md_extensions)
@@ -101,8 +108,7 @@ if df is not None:
                 group_problem_html += f"""
                 <div class="content-block problem-block">
                     {info_tag}
-                    <div class="problem-body">{p_body}</div>
-                    <div class="ans-label">정답</div>
+                    <div class="problem-body"><strong>{num_mun_display}{p_body.replace("<p>", "").replace("</p>", "")}</strong></div>
                     <div class="answer-body">{a_body}</div>
                 </div>
                 """
@@ -133,37 +139,43 @@ if df is not None:
             }}
             .header-box div {{ padding: 12px; box-sizing: border-box; }}
             .section-container {{ margin-bottom: 40px; }}
+            
+            /* [수정 1] 소카테고리 헤더 글자색 연한 회색으로 변경 */
             .section-header {{
                 width: 100%; background-color: #edf2f7;
                 padding: 8px 20px; font-weight: bold; font-size: 1.0em;
-                color: #2d3748; border-left: 5px solid #2d3748;
+                color: #718096; border-left: 5px solid #cbd5e0;
                 box-sizing: border-box; margin-top: 20px;
             }}
+            
             .sub-section {{ display: flex; width: 100%; page-break-inside: auto; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }}
             .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; }}
             .content-block {{ width: 100%; margin-bottom: 25px; page-break-inside: avoid; }}
-            .category-title {{ font-weight: bold; font-size: 1.15em; color: #1a202c; margin-bottom: 8px; }}
+            
+            /* [수정 2] 개념 타이틀 크기를 소카테고리 헤더(1.0em)와 동일하게 조정 */
+            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; }}
+            
             .concept-body {{ color: #4a5568; font-size: 0.98em; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; }}
-            .ans-label {{ 
-                display: inline-block; background-color: #fff5f5; color: #c53030; 
-                padding: 1px 6px; border-radius: 3px; font-weight: bold; 
-                font-size: 0.8em; margin-top: 12px; margin-bottom: 4px;
-                border: 1px solid #feb2b2;
-            }}
-            .answer-body {{ color: #2d3748; padding-left: 2px; }}
+            
+            /* [수정 4] 문제 텍스트 강조 */
+            .problem-body {{ margin-bottom: 8px; color: #2d3748; }}
+            .problem-body strong {{ font-weight: 700; }}
+
+            .answer-body {{ color: #4a5568; padding-left: 2px; }}
+            
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
+            
             @media print {{
                 .header-box {{ position: static; }}
-                .section-header {{ background-color: #edf2f7 !important; -webkit-print-color-adjust: exact; }}
+                .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; -webkit-print-color-adjust: exact; }}
                 .problem-col {{ background-color: white !important; }}
-                .ans-label {{ border: 1px solid #c53030 !important; }}
             }}
         </style>
     </head>
