@@ -36,22 +36,37 @@ st.markdown("""
 
 st.title("📄 전자책 요약 노트 생성기 (관리자용)")
 
-# 2. 구글 시트 연결
-url = "https://docs.google.com/spreadsheets/d/1eg3TnoILIHXCzf4fPCU6uqzZssLnFS2xHO5zD7N2c0g/edit?usp=sharing"
+# --------------------------------------------------
+# Google Sheet 연결 (연결 안정화 버전)
+# --------------------------------------------------
+SCOPE = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive"
+]
 
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    
-    # [수정 포인트]
-    # 방법 1: 한글 이름 대신 탭 순서를 사용합니다. 
-    # 만약 '테스트용'이 왼쪽에서 6번째 탭이라면 번호는 5입니다 (0부터 시작).
-    # 정확한 번호를 모를 경우, 아래처럼 worksheet를 지정하지 않고 
-    # '테스트용' 탭을 시트의 가장 왼쪽(첫 번째)으로 옮긴 후 실행하면 가장 확실합니다.
-    
-    df = conn.read(spreadsheet=url, worksheet="테스트용") 
-    # 만약 위 코드가 계속 에러나면, 구글 시트에서 '테스트용' 탭을 맨 왼쪽으로 드래그하고
-    # 아래 코드로 변경하세요:
-    # df = conn.read(spreadsheet=url) 
+SPREADSHEET_ID = "1eg3TnoILIHXCzf4fPCU6uqzZssLnFS2xHO5zD7N2c0g"
+
+@st.cache_resource
+def get_gspread_client():
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=SCOPE
+    )
+    return gspread.authorize(creds)
+
+# 전역 변수로 설정
+gc = get_gspread_client()
+
+@st.cache_resource
+def get_working_sheets():
+    try:
+        doc = gc.open_by_key(SPREADSHEET_ID)
+        return doc.worksheet("users"), doc.worksheet("favorites")
+    except Exception as e:
+        return None, None
+
+user_sheet, fav_sheet = get_working_sheets()
+
 
 
     # 3. 인쇄 버튼
