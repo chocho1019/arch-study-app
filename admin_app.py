@@ -16,7 +16,6 @@ def load_data(url):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
-        # 빈출 열 숫자 데이터 형식 변환 (숫자가 아닌 경우 0 처리)
         if '빈출' in df.columns:
             df['빈출'] = pd.to_numeric(df['빈출'], errors='coerce').fillna(0).astype(int)
         return df.fillna("")
@@ -31,11 +30,9 @@ if df_raw is not None:
     # --- 필터 영역 ---
     st.sidebar.header("🔍 필터 설정")
     
-    # 1. 과목 필터
     subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
     selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
     
-    # 2. 대카테고리 필터 (과목에 종속됨)
     if selected_subject != "전체":
         filtered_df = df_raw[df_raw['과목'] == selected_subject]
         main_cat_list = ["전체"] + sorted(list(filtered_df['대카테고리'].unique()))
@@ -48,25 +45,21 @@ if df_raw is not None:
     if selected_main_cat != "전체":
         filtered_df = filtered_df[filtered_df['대카테고리'] == selected_main_cat]
 
-    # 3. 빈출 필터 (3회 이상, 5회 이상)
     freq_filter = st.sidebar.radio("빈출도 필터", ["전체", "3회 이상 출제", "5회 이상 출제"])
     if freq_filter == "3회 이상 출제":
         filtered_df = filtered_df[filtered_df['빈출'] >= 3]
     elif freq_filter == "5회 이상 출제":
         filtered_df = filtered_df[filtered_df['빈출'] >= 5]
         
-    # 4. 정렬 기능
     sort_option = st.sidebar.checkbox("빈출 높은 순으로 정렬")
     if sort_option:
         filtered_df = filtered_df.sort_values(by='빈출', ascending=False)
 
-    df = filtered_df # 최종 필터링된 데이터를 df에 할당
+    df = filtered_df
 
-    # 인쇄 버튼
     if st.button("🖨️ PDF 인쇄/저장하기"):
         components.html("<script>window.parent.print();</script>", height=0)
 
-    # pk 열 이름 찾기
     pk_col = next((c for c in df.columns if c.lower() == 'pk'), None)
     
     if pk_col is None:
@@ -84,7 +77,6 @@ if df_raw is not None:
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     sections_html = ""
 
-    # 소카테고리 ID 그룹별로 반복 (정렬 옵션이 켜져있으면 groupby 순서가 정렬에 따라감)
     for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
         group_concept_html = ""
         group_problem_html = ""
@@ -98,10 +90,7 @@ if df_raw is not None:
         except:
             sub_num = sub_num_raw
             
-        if sub_num:
-            category_title = f"{sub_num}. {sub_cat_name}"
-        else:
-            category_title = sub_cat_name
+        category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
 
         for _, row in group.iterrows():
             cat = str(row.get('구분', '')).strip()
@@ -111,8 +100,8 @@ if df_raw is not None:
             info = str(row.get('출제', '')).strip()
             freq_val = row.get('빈출', 0)
             
-            # 빈출 뱃지 생성
-            freq_badge = f'<span style="background-color: #FED7D7; color: #C53030; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 8px;">★ {freq_val}회</span>' if freq_val > 0 else ""
+            # 1. 빈출 뱃지 수정 (별표 제거, 연한 회색 테마)
+            freq_badge = f'<span style="background-color: #edf2f7; color: #718096; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 8px; font-weight: normal;">{freq_val}회</span>' if freq_val > 0 else ""
 
             raw_num_gu = row.get('숫구', '')
             try:
@@ -168,23 +157,32 @@ if df_raw is not None:
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; }}
             .header-box {{
                 display: flex; background-color: #f8f9fa;
-                border-top: 3px solid #2D3748; border-bottom: 1px solid #dee2e6;
+                /* 4. 상단 라인 수정 (굵은 선에서 연한 선으로) */
+                border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
                 font-weight: bold; text-align: center;
                 position: sticky; top: 0; z-index: 100;
             }}
             .header-box div {{ padding: 12px; box-sizing: border-box; }}
-            .section-container {{ margin-bottom: 40px; }}
+            
+            /* 2. 섹션 간격 수정 (40px -> 20px) */
+            .section-container {{ margin-bottom: 20px; }}
+            
             .section-header {{
                 width: 100%; background-color: #edf2f7;
                 padding: 8px 20px; font-weight: bold; font-size: 1.0em;
                 color: #718096; border-left: 5px solid #cbd5e0;
-                box-sizing: border-box; margin-top: 20px;
+                box-sizing: border-box; 
+                /* 2. 이전 개념/문제와의 간격 수정 (20px -> 10px) */
+                margin-top: 10px;
             }}
             .sub-section {{ display: flex; width: 100%; page-break-inside: auto; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }}
             .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; }}
-            .content-block {{ width: 100%; margin-bottom: 25px; page-break-inside: avoid; }}
+            
+            /* 2. 블록 간 간격 수정 (25px -> 12px) */
+            .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; }}
+            
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; }}
             .concept-body {{ color: #4a5568; font-size: 0.98em; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; }}
@@ -205,8 +203,8 @@ if df_raw is not None:
     </head>
     <body>
         <div class="header-box">
-            <div style="width: 60%; border-right: 1px solid #dee2e6;">개념 요약</div>
-            <div style="width: 40%;">관련 문제 및 정답</div>
+            <div style="width: 60%; border-right: 1px solid #dee2e6;">개념</div>
+            <div style="width: 40%;">문제</div>
         </div>
         <div class="main-container">
             {sections_html}
@@ -215,7 +213,7 @@ if df_raw is not None:
     </html>
     """
 
-    iframe_height = max(2000, len(df) * 200)
+    iframe_height = max(2000, len(df) * 150)
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
