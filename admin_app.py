@@ -16,15 +16,53 @@ def load_data(url):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
+        # 빈출 열 숫자 데이터 형식 변환 (숫자가 아닌 경우 0 처리)
+        if '빈출' in df.columns:
+            df['빈출'] = pd.to_numeric(df['빈출'], errors='coerce').fillna(0).astype(int)
         return df.fillna("")
     except Exception:
         return None
 
-df = load_data(csv_url)
+df_raw = load_data(csv_url)
 
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
-if df is not None:
+if df_raw is not None:
+    # --- 필터 영역 ---
+    st.sidebar.header("🔍 필터 설정")
+    
+    # 1. 과목 필터
+    subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
+    selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
+    
+    # 2. 대카테고리 필터 (과목에 종속됨)
+    if selected_subject != "전체":
+        filtered_df = df_raw[df_raw['과목'] == selected_subject]
+        main_cat_list = ["전체"] + sorted(list(filtered_df['대카테고리'].unique()))
+    else:
+        filtered_df = df_raw
+        main_cat_list = ["전체"] + sorted(list(df_raw['대카테고리'].unique())) if '대카테고리' in df_raw.columns else ["전체"]
+    
+    selected_main_cat = st.sidebar.selectbox("대카테고리 선택", main_cat_list)
+    
+    if selected_main_cat != "전체":
+        filtered_df = filtered_df[filtered_df['대카테고리'] == selected_main_cat]
+
+    # 3. 빈출 필터 (3회 이상, 5회 이상)
+    freq_filter = st.sidebar.radio("빈출도 필터", ["전체", "3회 이상 출제", "5회 이상 출제"])
+    if freq_filter == "3회 이상 출제":
+        filtered_df = filtered_df[filtered_df['빈출'] >= 3]
+    elif freq_filter == "5회 이상 출제":
+        filtered_df = filtered_df[filtered_df['빈출'] >= 5]
+        
+    # 4. 정렬 기능
+    sort_option = st.sidebar.checkbox("빈출 높은 순으로 정렬")
+    if sort_option:
+        filtered_df = filtered_df.sort_values(by='빈출', ascending=False)
+
+    df = filtered_df # 최종 필터링된 데이터를 df에 할당
+
+    # 인쇄 버튼
     if st.button("🖨️ PDF 인쇄/저장하기"):
         components.html("<script>window.parent.print();</script>", height=0)
 
@@ -46,16 +84,14 @@ if df is not None:
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     sections_html = ""
 
-    # 소카테고리 ID 그룹별로 반복
-    for sub_id, group in df.groupby('sub_cat_id', sort=False):
+    # 소카테고리 ID 그룹별로 반복 (정렬 옵션이 켜져있으면 groupby 순서가 정렬에 따라감)
+    for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
         group_concept_html = ""
         group_problem_html = ""
         
-        # 그룹의 첫 번째 행에서 데이터 추출
         first_row = group.iloc[0]
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
         
-        # '숫소' 열 처리
         sub_num_raw = str(first_row.get('숫소', '')).strip()
         try:
             sub_num = str(int(float(sub_num_raw))) if sub_num_raw and sub_num_raw != "nan" else ""
@@ -73,8 +109,11 @@ if df is not None:
             problem_raw = str(row.get('문제', '')).strip()
             answer_raw = str(row.get('정답', '')).strip()
             info = str(row.get('출제', '')).strip()
+            freq_val = row.get('빈출', 0)
             
-            # [수정 2] 개념 숫자('숫구') 처리 및 '1)' 양식 적용
+            # 빈출 뱃지 생성
+            freq_badge = f'<span style="background-color: #FED7D7; color: #C53030; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 8px;">★ {freq_val}회</span>' if freq_val > 0 else ""
+
             raw_num_gu = row.get('숫구', '')
             try:
                 num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
@@ -82,7 +121,6 @@ if df is not None:
                 num_gu_val = str(raw_num_gu).strip()
             num_gu_display = f"{num_gu_val})" if num_gu_val else ""
 
-            # [수정 4] 문제 숫자('숫문') 처리
             raw_num_mun = row.get('숫문', '')
             try:
                 num_mun_val = str(int(float(raw_num_mun))) if str(raw_num_mun).strip() and str(raw_num_mun) != "nan" else str(raw_num_mun).strip()
@@ -90,17 +128,15 @@ if df is not None:
                 num_mun_val = str(raw_num_mun).strip()
             num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
-            # 왼쪽: 개념 블록
             if cat or concept_raw:
                 c_body = markdown.markdown(concept_raw, extensions=md_extensions)
                 group_concept_html += f"""
                 <div class="content-block">
-                    <div class="category-title">{num_gu_display} {cat}</div>
+                    <div class="category-title">{num_gu_display} {cat} {freq_badge}</div>
                     <div class="concept-body">{c_body}</div>
                 </div>
                 """
 
-            # 오른쪽: 문제 블록 [수정 3, 4 정답라벨 제거 및 문제 볼드체]
             if problem_raw:
                 p_body = markdown.markdown(problem_raw, extensions=md_extensions)
                 a_body = markdown.markdown(answer_raw, extensions=md_extensions)
@@ -113,7 +149,6 @@ if df is not None:
                 </div>
                 """
 
-        # 전체 섹션 구성
         sections_html += f"""
         <div class="section-container">
             <div class="section-header">{category_title}</div>
@@ -139,39 +174,28 @@ if df is not None:
             }}
             .header-box div {{ padding: 12px; box-sizing: border-box; }}
             .section-container {{ margin-bottom: 40px; }}
-            
-            /* [수정 1] 소카테고리 헤더 글자색 연한 회색으로 변경 */
             .section-header {{
                 width: 100%; background-color: #edf2f7;
                 padding: 8px 20px; font-weight: bold; font-size: 1.0em;
                 color: #718096; border-left: 5px solid #cbd5e0;
                 box-sizing: border-box; margin-top: 20px;
             }}
-            
             .sub-section {{ display: flex; width: 100%; page-break-inside: auto; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }}
             .concept-col {{ width: 60%; border-right: 1px solid #edf2f7; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; }}
             .content-block {{ width: 100%; margin-bottom: 25px; page-break-inside: avoid; }}
-            
-            /* [수정 2] 개념 타이틀 크기를 소카테고리 헤더(1.0em)와 동일하게 조정 */
-            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; }}
-            
+            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; }}
             .concept-body {{ color: #4a5568; font-size: 0.98em; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; }}
-            
-            /* [수정 4] 문제 텍스트 강조 */
             .problem-body {{ margin-bottom: 8px; color: #2d3748; }}
             .problem-body strong {{ font-weight: 700; }}
-
             .answer-body {{ color: #4a5568; padding-left: 2px; }}
-            
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
-            
             @media print {{
                 .header-box {{ position: static; }}
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; -webkit-print-color-adjust: exact; }}
