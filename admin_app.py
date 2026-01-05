@@ -42,11 +42,20 @@ if df is not None:
         answer_raw = str(row.get('정답', '')).strip()
         info = str(row.get('출제', '')).strip()
 
-        # 숫자 가공: 숫자 뒤에 )가 없으면 붙여줌 (예: 1 -> 1))
-        if num_val:
-            num_display = f"{num_val})" if ')' not in num_val else num_val
-        else:
-            num_display = ""
+        # 데이터를 가져올 때 float 형태(.0)를 제거하기 위해 정수형 변환 후 문자열로 바꿉니다.
+raw_num = row.get('숫자', '')
+try:
+    # 데이터가 숫자라면 정수로 변환하여 .0 제거, 아니면 그대로 문자열 처리
+    num_val = str(int(float(raw_num))) if str(raw_num).strip() and str(raw_num) != "nan" else str(raw_num).strip()
+except:
+    num_val = str(raw_num).strip()
+
+if num_val and num_val != "nan":
+    # 숫자 뒤에 )를 붙여줍니다.
+    num_display = f"{num_val})" if ')' not in num_val else num_val
+else:
+    num_display = ""
+            
 
         # 왼쪽: 개념 블록 (소카테고리 열이 추가된 레이아웃)
         if cat or concept_raw:
