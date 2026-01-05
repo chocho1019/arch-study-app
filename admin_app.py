@@ -35,7 +35,7 @@ st.markdown("""
         table-layout: fixed;
     }
 
-    thead { display: table-header-group; } /* 인쇄 시 헤더 반복 */
+    thead { display: table-header-group; } 
 
     .print-table th, .print-table td {
         border: 1px solid #aaa;
@@ -64,7 +64,7 @@ st.markdown("""
     .category-title { font-weight: bold; font-size: 1.1em; border-bottom: 1px solid #eee; margin-bottom: 8px; display: block; color: #000; }
     .ans-label { font-weight: bold; color: #333; margin-top: 10px; display: block; }
 
-    /* 마크다운 표 스타일: 흰색 배경 및 가운데 정렬 */
+    /* 내부 마크다운 표 스타일: 흰색 배경 및 가운데 정렬 */
     .print-table td table { border-collapse: collapse; width: 100% !important; margin: 5px 0; border: 1px solid #ddd; }
     .print-table td table td, .print-table td table th { 
         border: 1px solid #ddd !important; 
@@ -86,7 +86,6 @@ st.title("📑 건축기사 요약 노트")
 
 if df is not None:
     if st.button("🖨️ 전체 PDF로 저장하기"):
-        # 여기서 괄호가 닫히지 않아 오류가 났었습니다. 수정 완료.
         components.html("<script>window.parent.print();</script>", height=0)
 
     st.markdown("---")
@@ -113,7 +112,14 @@ if df is not None:
         )
         table_content += row_html
 
+    # --- 여기서부터 누락된 부분을 보강했습니다 ---
     full_table_html = (
         f'<table class="print-table">'
         f'<thead><tr><th class="col-concept">개념</th><th class="col-problem">문제</th><th class="col-info">출제</th></tr></thead>'
         f'<tbody>{table_content}</tbody></table>'
+    )
+
+    # 최종 출력
+    st.markdown(full_table_html, unsafe_allow_html=True)
+else:
+    st.error("데이터를 불러오지 못했습니다. Google Sheets URL을 확인해주세요.")
