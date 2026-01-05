@@ -40,7 +40,7 @@ st.title("📄 전자책 요약 노트 생성기 (관리자용)")
 
 # 2. 구글 시트 연결
 # 'url' 부분에 복사한 시트 주소를 넣으세요.
-url = "https://docs.google.com/spreadsheets/d/여러분의_시트_아이디/edit?usp=sharing"
+url = "https://docs.google.com/spreadsheets/d/1eg3TnoILIHXCzf4fPCU6uqzZssLnFS2xHO5zD7N2c0g/edit?usp=sharing"
 conn = st.connection("gsheets", type=GSheetsConnection)
 df = conn.read(spreadsheet=url)
 
