@@ -272,8 +272,8 @@ if df_raw is not None:
                 <tr>
                     <td style="padding: 0; border: none;">
                         <div class="header-box">
-                            <div class="concept-h">개념 요약</div>
-                            <div class="problem-h">관련 문제 및 정답</div>
+                            <div class="concept-h">개념</div>
+                            <div class="problem-h">문제</div>
                         </div>
                     </td>
                 </tr>
