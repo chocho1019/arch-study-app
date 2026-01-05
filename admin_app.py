@@ -97,7 +97,7 @@ if df_raw is not None:
             info = str(row.get('출제', '')).strip()
             freq_val = row.get('빈출', 0)
             
-            # 빈출 뱃지: 글씨색과 동일한 얇은 회색 테두리 박스 적용
+            # 빈출 뱃지: 테두리 박스 스타일 유지
             freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
 
             raw_num_gu = row.get('숫구', '')
@@ -135,7 +135,7 @@ if df_raw is not None:
                 </div>
                 """
 
-        # 섹션 간격 절반으로 축소 (margin-bottom: 10px)
+        # 섹션 간격 유지 (10px)
         sections_html += f"""
         <div class="section-container">
             <div class="section-header">{category_title}</div>
@@ -170,21 +170,31 @@ if df_raw is not None:
                 font-weight: bold;
             }}
             
-            /* 고정 헤더용 테이블 구조 (인쇄 전용) */
             .master-table {{ width: 100%; border-collapse: collapse; border: none; }}
             .master-thead {{ display: table-header-group; }} 
             
             .header-box {{
                 display: flex; background-color: #f8f9fa;
                 border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
-                font-weight: bold; text-align: center;
+                font-weight: bold; 
+                /* 텍스트 정렬을 좌측으로 변경 */
+                text-align: left; 
                 position: sticky; top: 0; z-index: 100;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }}
-            /* 비율 6:4 엄격 고정 */
-            .header-box .concept-h {{ width: 60%; padding: 12px; box-sizing: border-box; border-right: 1px solid #dee2e6; }}
-            .header-box .problem-h {{ width: 40%; padding: 12px; box-sizing: border-box; }}
+            /* 비율 6:4 엄격 고정 및 좌측 정렬 패딩 조정 */
+            .header-box .concept-h {{ 
+                width: 60%; 
+                padding: 12px 12px 12px 30px; /* 본문 간격과 맞추기 위해 좌측 패딩 30px 적용 */
+                box-sizing: border-box; 
+                border-right: 1px solid #dee2e6; 
+            }}
+            .header-box .problem-h {{ 
+                width: 40%; 
+                padding: 12px 12px 12px 25px; /* 본문 간격과 맞추기 위해 좌측 패딩 25px 적용 */
+                box-sizing: border-box; 
+            }}
 
             .section-container {{ margin-bottom: 10px; }}
             .section-header {{
@@ -209,7 +219,7 @@ if df_raw is not None:
             .problem-body strong {{ font-weight: 700; }}
             .answer-body {{ color: #4a5568; padding-left: 2px; }}
 
-            /* 기존 마크다운 표 스타일 (유지) */
+            /* 기존 마크다운 표 스타일 (절대 유지) */
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 10px 8px; font-size: 0.9em; text-align: center; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; -webkit-print-color-adjust: exact; }}
