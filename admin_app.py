@@ -38,20 +38,18 @@ def format_drive_link(link):
 
 df_raw = load_data(csv_url)
 
-# [수정] 그룹 ID 생성 로직 강화 (필터링 전 원본 데이터에 적용)
-# 개념과 문제를 강력하게 묶어주기 위해 ffill(Forward Fill) 방식을 사용하여
-# 정보가 부족한 문제 행도 상위 개념의 ID를 물려받게 함
+# 그룹 ID 생성 로직
 if df_raw is not None:
     def extract_group_id_robust(row):
-        # 1. PK 확인 (개념 행일 확률 높음)
+        # 1. PK 확인
         pk_val = str(row.get('pk', '')).strip()
         if pk_val and pk_val.lower() != 'nan':
             parts = pk_val.split('-')
             if len(parts) >= 3:
-                return "-".join(parts[:3]) # 예: A-01-01
+                return "-".join(parts[:3]) 
             return pk_val
         
-        # 2. FPK 확인 (문제 행일 확률 높음)
+        # 2. FPK 확인
         fpk_val = str(row.get('fpk', '')).strip()
         if fpk_val and fpk_val.lower() != 'nan':
             parts = fpk_val.split('-')
@@ -59,14 +57,12 @@ if df_raw is not None:
                 return "-".join(parts[:3])
             return fpk_val
         
-        # 3. 둘 다 없으면 None 반환 (이후 ffill로 채움)
         return None
 
     # 전체 데이터에 대해 그룹 ID 1차 생성
     df_raw['sub_cat_id'] = df_raw.apply(extract_group_id_robust, axis=1)
     
-    # [핵심] fpk조차 누락된 고아 문제들을 위해, 바로 위 행(개념)의 ID를 물려받음 (Forward Fill)
-    # 이를 통해 붕 떠있는 문제들이 제자리(개념 옆)로 찾아감
+    # fpk조차 누락된 고아 문제들을 위해 ffill
     df_raw['sub_cat_id'] = df_raw['sub_cat_id'].ffill()
     
     # 그래도 비어있는 값은 ETC 처리
@@ -106,10 +102,8 @@ if df_raw is not None:
 
     df = filtered_df
 
-    # [삭제] 기존의 불완전했던 get_group_id 로직 삭제
-    # 이미 상단에서 'sub_cat_id'를 완벽하게 생성했으므로 바로 그룹핑에 들어감
-    
-    md_extensions = ['tables', 'fenced_code', 'nl2br']
+    # [수정 1] nl2br 확장 제거 (개념/정답을 문단으로 분리하기 위함)
+    md_extensions = ['tables', 'fenced_code'] 
     sections_html = ""
 
     # 소카테고리별로 그룹화하여 순회
@@ -117,7 +111,6 @@ if df_raw is not None:
         group_concept_html = ""
         group_problem_html = ""
         
-        # 해당 그룹의 제목(소카테고리 이름)을 가져오기 위해 pk가 있는 행을 우선 탐색
         valid_rows = group[group['소카테고리'] != ""]
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         
@@ -140,7 +133,7 @@ if df_raw is not None:
             info = str(row.get('출제년도', '')).strip()
             freq_val = row.get('개념빈출', 0)
             
-            # 1. 개념 영역 렌더링 (내용이 있는 경우만)
+            # 1. 개념 영역 렌더링
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
                 freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
                 
@@ -151,7 +144,10 @@ if df_raw is not None:
                     num_gu_val = str(raw_num_gu).strip()
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
 
-                c_body = markdown.markdown(concept_raw, extensions=md_extensions)
+                # [수정 2] 개념 본문: 줄바꿈(\n)을 두 번 줄바꿈(\n\n)으로 변경하여 각각 <p> 태그 생성
+                # 이렇게 하면 각 줄이 독립된 문단이 되어 내어쓰기(text-indent)가 줄마다 적용됨 (Case 1 해결)
+                c_body = markdown.markdown(concept_raw.replace('\n', '\n\n'), extensions=md_extensions)
+                
                 c_img_tag = ""
                 if concept_img_url and concept_img_url.lower() != "nan":
                     c_direct_url = format_drive_link(concept_img_url)
@@ -165,7 +161,7 @@ if df_raw is not None:
                 </div>
                 """
 
-            # 2. 문제 영역 렌더링 (문제 내용이 있는 모든 행)
+            # 2. 문제 영역 렌더링
             if problem_raw and problem_raw.lower() != "nan":
                 raw_num_mun = row.get('숫문', '')
                 try:
@@ -174,8 +170,11 @@ if df_raw is not None:
                     num_mun_val = str(raw_num_mun).strip()
                 num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
-                p_body = markdown.markdown(problem_raw, extensions=md_extensions)
-                a_body = markdown.markdown(answer_raw, extensions=md_extensions)
+                # [수정 3] 문제 본문: 기존처럼 Bold 처리 내에서 줄바꿈만 하기 위해 '  \n' (<br>) 사용
+                p_body = markdown.markdown(problem_raw.replace('\n', '  \n'), extensions=md_extensions)
+                
+                # [수정 4] 정답 본문: 개념과 동일하게 독립 문단으로 처리 (보기가 줄바꿈 되어 있을 경우를 위함)
+                a_body = markdown.markdown(answer_raw.replace('\n', '\n\n'), extensions=md_extensions)
                 
                 p_img_tag = ""
                 if problem_img_url and problem_img_url.lower() != "nan":
@@ -203,7 +202,7 @@ if df_raw is not None:
         </div>
         """
 
-    # 스타일 설정 및 HTML 조립 (기존과 동일)
+    # 스타일 설정 및 HTML 조립
     if only_concept:
         main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
         header_box_display = "none"
@@ -249,13 +248,12 @@ if df_raw is not None:
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
             
-            /* [수정] 개념 본문: 내어쓰기(Hanging Indent) 적용 */
             .concept-body {{ 
                 color: #4a5568; 
                 font-size: 0.98em; 
                 text-align: left;
-                padding-left: 18px; /* 둘째 줄 기준 위치 */
-                text-indent: -18px; /* 첫 줄만 앞으로 당김 */
+                padding-left: 18px; 
+                text-indent: -18px;
             }}
             
             .image-wrapper {{ margin: 10px 0; text-align: left; }}
@@ -265,19 +263,18 @@ if df_raw is not None:
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
             
-            /* [수정] 문제 보기(정답) 영역: 내어쓰기 + 줄간격 축소 */
             .answer-body {{ 
                 color: #4a5568; 
                 text-align: left;
-                padding-left: 18px; /* 둘째 줄 기준 위치 */
-                text-indent: -18px; /* 첫 줄만 앞으로 당김 */
-                line-height: 1.35;  /* 줄 간격을 기존 1.6에서 축소 (약 70% 느낌) */
+                padding-left: 18px; 
+                text-indent: -18px; 
+                line-height: 1.35; 
             }}
             
-            /* 보기들이 p태그로 나뉠 경우를 대비한 여백 조정 */
+            /* [수정 5] p태그 마진 조정으로 리스트 간격 최적화 */
             .answer-body p, .concept-body p {{
-                margin: 3px 0;      /* 문단 간격을 좁게 설정 */
-                padding-left: 18px; /* 중복 적용 방지를 위한 리셋 또는 유지 */
+                margin: 3px 0;      
+                padding-left: 18px; 
                 text-indent: -18px; 
             }}
 
@@ -300,7 +297,7 @@ if df_raw is not None:
             <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
             <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 설정된 필터에 맞춰 인쇄됩니다.</span>
         </div>
-        <br>
+        
         <table class="master-table">
             <thead class="master-thead">
                 <tr>
@@ -330,4 +327,3 @@ if df_raw is not None:
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
-    
