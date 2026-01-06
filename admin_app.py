@@ -17,17 +17,12 @@ def load_data(url):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
-        
-        # [수정] 데이터 전처리: pk가 없고 fpk가 있는 경우 pk 자리에 fpk를 임시로 참조하게 함
-        # 이를 통해 문제만 있는 행들도 소카테고리 그룹에 포함됨
         if '개념빈출' in df.columns:
             df['개념빈출'] = pd.to_numeric(df['개념빈출'], errors='coerce').fillna(0).astype(int)
-        
         return df.fillna("")
     except Exception:
         return None
 
-# 구글 드라이브 링크 변환 함수
 def format_drive_link(link):
     if not link or str(link).lower() == 'nan':
         return ""
@@ -73,12 +68,9 @@ if df_raw is not None:
 
     df = filtered_df
 
-    # [수정] 그룹화를 위한 ID 추출 로직 강화
-    # pk가 있으면 pk를 사용하고, 없으면 fpk를 사용하여 소카테고리 ID(예: A-01-01)를 추출합니다.
     def get_group_id(row):
         pk_val = str(row.get('pk', '')).strip()
         fpk_val = str(row.get('fpk', '')).strip()
-        # pk가 우선, 없으면 fpk 참조
         target_id = pk_val if pk_val and pk_val != "nan" else fpk_val
         parts = target_id.split('-')
         if len(parts) >= 3:
@@ -90,12 +82,10 @@ if df_raw is not None:
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     sections_html = ""
 
-    # 소카테고리별로 그룹화하여 순회
     for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
         group_concept_html = ""
         group_problem_html = ""
         
-        # 해당 그룹의 제목(소카테고리 이름)을 가져오기 위해 pk가 있는 행을 우선 탐색
         valid_rows = group[group['소카테고리'] != ""]
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         
@@ -108,7 +98,6 @@ if df_raw is not None:
         category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
 
         for _, row in group.iterrows():
-            # 데이터 추출
             cat = str(row.get('구분', '')).strip()
             concept_raw = str(row.get('개념', '')).strip()
             concept_img_url = str(row.get('개념이미지', '')).strip()
@@ -118,7 +107,6 @@ if df_raw is not None:
             info = str(row.get('출제년도', '')).strip()
             freq_val = row.get('개념빈출', 0)
             
-            # 1. 개념 영역 렌더링 (내용이 있는 경우만)
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
                 freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
                 
@@ -143,7 +131,6 @@ if df_raw is not None:
                 </div>
                 """
 
-            # 2. 문제 영역 렌더링 (문제 내용이 있는 모든 행)
             if problem_raw and problem_raw.lower() != "nan":
                 raw_num_mun = row.get('숫문', '')
                 try:
@@ -170,7 +157,6 @@ if df_raw is not None:
                 </div>
                 """
 
-        # 소카테고리 컨테이너 생성
         sections_html += f"""
         <div class="section-container">
             <div class="section-header">{category_title}</div>
@@ -181,7 +167,6 @@ if df_raw is not None:
         </div>
         """
 
-    # 스타일 설정 및 HTML 조립 (기존과 동일)
     if only_concept:
         main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
         header_box_display = "none"
@@ -209,7 +194,12 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; text-align: left; }}
+            /* line-height를 1.6에서 1.3으로 축소하여 줄 간격 최적화 */
+            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.3; text-align: left; }}
+            
+            /* 마크다운에서 생성되는 p 태그의 상하 여백 제거 */
+            p {{ margin: 0; padding: 0; }}
+            
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
@@ -224,20 +214,27 @@ if df_raw is not None:
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
             .concept-col {{ width: {c_col_width}; border-right: {c_col_border}; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_col_display}; -webkit-print-color-adjust: exact; }}
-            .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
-            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
-            .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; }}
-            .image-wrapper {{ margin: 10px 0; text-align: left; }}
+            
+            /* content-block 간격 조정 */
+            .content-block {{ width: 100%; margin-bottom: 10px; page-break-inside: avoid; text-align: left; }}
+            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 4px; display: flex; align-items: center; justify-content: flex-start; }}
+            
+            /* 줄 간격 좁힘 */
+            .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; line-height: 1.3; }}
+            
+            .image-wrapper {{ margin: 8px 0; text-align: left; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
-            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 10px; }}
-            .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
-            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
-            .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
-            .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; }}
-            table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
+            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 8px; }}
+            .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; text-align: left; }}
+            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 4px; text-align: left; }}
+            .problem-body {{ margin-bottom: 4px; color: #2d3748; text-align: left; line-height: 1.3; }}
+            .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; line-height: 1.3; }}
+            
+            table {{ border-collapse: collapse; width: 100%; margin: 8px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
+
             @media print {{
                 .print-button-container {{ display: none !important; }}
                 .header-box {{ position: static; display: {header_box_display} !important; }}
@@ -279,7 +276,7 @@ if df_raw is not None:
     </html>
     """
 
-    iframe_height = max(2000, len(df) * 250) 
+    iframe_height = max(2000, len(df) * 220) 
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
