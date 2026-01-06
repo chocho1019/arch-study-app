@@ -248,14 +248,39 @@ if df_raw is not None:
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_col_display}; -webkit-print-color-adjust: exact; }}
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
-            .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; }}
+            
+            /* [수정] 개념 본문: 내어쓰기(Hanging Indent) 적용 */
+            .concept-body {{ 
+                color: #4a5568; 
+                font-size: 0.98em; 
+                text-align: left;
+                padding-left: 18px; /* 둘째 줄 기준 위치 */
+                text-indent: -18px; /* 첫 줄만 앞으로 당김 */
+            }}
+            
             .image-wrapper {{ margin: 10px 0; text-align: left; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
             .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 10px; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
-            .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; }}
+            
+            /* [수정] 문제 보기(정답) 영역: 내어쓰기 + 줄간격 축소 */
+            .answer-body {{ 
+                color: #4a5568; 
+                text-align: left;
+                padding-left: 18px; /* 둘째 줄 기준 위치 */
+                text-indent: -18px; /* 첫 줄만 앞으로 당김 */
+                line-height: 1.35;  /* 줄 간격을 기존 1.6에서 축소 (약 70% 느낌) */
+            }}
+            
+            /* 보기들이 p태그로 나뉠 경우를 대비한 여백 조정 */
+            .answer-body p, .concept-body p {{
+                margin: 3px 0;      /* 문단 간격을 좁게 설정 */
+                padding-left: 18px; /* 중복 적용 방지를 위한 리셋 또는 유지 */
+                text-indent: -18px; 
+            }}
+
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
