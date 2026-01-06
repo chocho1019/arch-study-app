@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
 import markdown
+import re
 
 # 1. 페이지 설정
 st.set_page_config(layout="wide", page_title="건축기사 요약 노트")
@@ -22,6 +23,15 @@ def load_data(url):
     except Exception:
         return None
 
+# 구글 드라이브 링크 변환 함수 (이미지 표시용)
+def format_drive_link(link):
+    if "drive.google.com" in link:
+        # 파일 ID 추출 후 직접 보기 링크로 변환
+        file_id_match = re.search(r'd/([^/]+)', link) or re.search(r'id=([^&]+)', link)
+        if file_id_match:
+            return f"https://docs.google.com/uc?export=view&id={file_id_match.group(1)}"
+    return link
+
 df_raw = load_data(csv_url)
 
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
@@ -30,7 +40,6 @@ if df_raw is not None:
     # --- 필터 영역 ---
     st.sidebar.header("🔍 필터 설정")
     
-    # 신규 필터: 개념만 보기
     only_concept = st.sidebar.checkbox("개념만 보기")
     
     subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
@@ -95,6 +104,7 @@ if df_raw is not None:
         for _, row in group.iterrows():
             cat = str(row.get('구분', '')).strip()
             concept_raw = str(row.get('개념', '')).strip()
+            concept_img_url = str(row.get('개념이미지', '')).strip() # [추가] 개념이미지 열 데이터
             problem_raw = str(row.get('문제', '')).strip()
             answer_raw = str(row.get('정답', '')).strip()
             info = str(row.get('출제년도', '')).strip()
@@ -116,12 +126,21 @@ if df_raw is not None:
                 num_mun_val = str(raw_num_mun).strip()
             num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
-            if cat or concept_raw:
+            # 개념 셀 HTML 구성 (구분 - 개념 - 개념이미지 순)
+            if cat or concept_raw or concept_img_url:
                 c_body = markdown.markdown(concept_raw, extensions=md_extensions)
+                
+                # 이미지 태그 생성
+                img_tag = ""
+                if concept_img_url and concept_img_url.lower() != "nan":
+                    direct_url = format_drive_link(concept_img_url)
+                    img_tag = f'<div class="concept-image-wrapper"><img src="{direct_url}" class="concept-img"></div>'
+                
                 group_concept_html += f"""
                 <div class="content-block">
                     <div class="category-title">{num_gu_display} {cat} {freq_badge}</div>
                     <div class="concept-body">{c_body}</div>
+                    {img_tag}
                 </div>
                 """
 
@@ -151,7 +170,7 @@ if df_raw is not None:
     if only_concept:
         main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
         header_box_display = "none"
-        print_column_count = "2"  # 인쇄 시 2단 적용
+        print_column_count = "2"
         c_h_width = "100%"
         p_h_display = "none"
         c_col_width = "100%"
@@ -161,7 +180,7 @@ if df_raw is not None:
     else:
         main_container_style = ""
         header_box_display = "flex"
-        print_column_count = "1"  # 인쇄 시 1단(기본) 적용
+        print_column_count = "1"
         c_h_width = "60%"
         p_h_display = "block"
         c_col_width = "60%"
@@ -236,6 +255,11 @@ if df_raw is not None:
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
             .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; }}
+            
+            /* 이미지 스타일 [추가] */
+            .concept-image-wrapper {{ margin-top: 10px; text-align: left; }}
+            .concept-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; }}
+
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
@@ -248,12 +272,10 @@ if df_raw is not None:
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                /* 필터 상태에 따라 헤더 박스 표시 여부 결정 */
                 .header-box {{ position: static; display: {header_box_display} !important; }}
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; }}
                 .problem-col {{ background-color: #fcfcfc !important; }}
                 body {{ padding: 0; margin: 0; }}
-                /* 동적으로 결정된 print_column_count 값을 인쇄 시 적용 */
                 .main-container {{ 
                     column-count: {print_column_count} !important; 
                     -webkit-column-count: {print_column_count} !important; 
@@ -266,7 +288,7 @@ if df_raw is not None:
             <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
             <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 설정된 필터에 맞춰 인쇄됩니다.</span>
         </div>
-        
+        <br>
         <table class="master-table">
             <thead class="master-thead">
                 <tr>
