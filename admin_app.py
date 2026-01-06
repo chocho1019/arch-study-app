@@ -34,13 +34,14 @@ def format_drive_link(link):
             return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return link
 
-# [추가] 내어쓰기 케이스 분류 함수
+# [수정] 내어쓰기 케이스 분류 함수 (오류 해결 버전)
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # 기호로 시작하는 문단 패턴 (①-⑮, ❶-⓯, 숫구-숫문 형태 1), 1., 특수기호 -, *, • 등)
-    # 해당 기호로 시작하는 <p> 태그에 'no-indent' 클래스를 삽입합니다.
-    pattern = r'<p>([①-⑮❶-⓯\-\*\u2022]|(?:\d+[\)\.]))'
+    # 오류가 발생했던 대시(-)와 특수문자 범위를 가장 안전한 방식으로 재작성했습니다.
+    # 기호로 시작하는 문단 패턴: ①~⑮, ❶~⓯, 숫자), 숫자., -, *, • 등
+    # 하이픈(-)은 대괄호 안에서 맨 앞에 두어 범위 연산자로 인식되지 않게 처리했습니다.
+    pattern = r'<p>([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
     return re.sub(pattern, r'<p class="no-indent">\1', html_text)
 
 df_raw = load_data(csv_url)
@@ -124,7 +125,6 @@ if df_raw is not None:
                     num_gu_val = str(raw_num_gu).strip()
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
 
-                # [수정] 개념 본문 처리
                 c_body = markdown.markdown(concept_raw, extensions=md_extensions)
                 c_body = apply_custom_indent(c_body) 
 
@@ -150,7 +150,6 @@ if df_raw is not None:
                 num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
                 p_body = markdown.markdown(problem_raw, extensions=md_extensions)
-                # [수정] 정답(보기) 본문 처리
                 a_body = markdown.markdown(answer_raw, extensions=md_extensions)
                 a_body = apply_custom_indent(a_body)
                 
@@ -179,11 +178,12 @@ if df_raw is not None:
         </div>
         """
 
+    # 스타일 변수 설정
     if only_concept:
-        main_container_style, header_box_display, print_column_count, c_h_width, p_h_display, c_col_width, c_col_border, p_col_display, section_break_style = \
+        m_style, h_display, p_count, c_h_w, p_h_d, c_c_w, c_c_b, p_c_d, s_b_style = \
         "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;", "none", "2", "100%", "none", "100%", "none", "none", "break-inside: avoid; display: inline-block; width: 100%;"
     else:
-        main_container_style, header_box_display, print_column_count, c_h_width, p_h_display, c_col_width, c_col_border, p_col_display, section_break_style = \
+        m_style, h_display, p_count, c_h_w, p_h_d, c_c_w, c_c_b, p_c_d, s_b_style = \
         "", "flex", "1", "60%", "block", "60%", "1px solid #edf2f7", "flex", "page-break-inside: avoid;"
 
     full_html_page = f"""
@@ -196,28 +196,28 @@ if df_raw is not None:
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
-            .header-box {{ display: {header_box_display}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-            .header-box .concept-h {{ width: {c_h_width}; padding: 4px 12px; box-sizing: border-box; border-right: {c_col_border}; }}
-            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
-            .main-container {{ text-align: left; {main_container_style} }}
-            .section-container {{ margin-bottom: 15px; text-align: left; {section_break_style} }}
+            .header-box {{ display: {h_display}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+            .header-box .concept-h {{ width: {c_h_w}; padding: 4px 12px; box-sizing: border-box; border-right: {c_c_b}; }}
+            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_d}; }}
+            .main-container {{ text-align: left; {m_style} }}
+            .section-container {{ margin-bottom: 15px; text-align: left; {s_b_style} }}
             .section-header {{ width: 100%; background-color: #edf2f7; padding: 8px 20px; font-weight: bold; font-size: 1.0em; color: #718096; border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-top: 5px; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
             .sub-section {{ display: flex; width: 100%; text-align: left; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
-            .concept-col {{ width: {c_col_width}; border-right: {c_col_border}; padding-left: 30px; }}
-            .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_col_display}; -webkit-print-color-adjust: exact; }}
+            .concept-col {{ width: {c_c_w}; border-right: {c_c_b}; padding-left: 30px; }}
+            .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_c_d}; -webkit-print-color-adjust: exact; }}
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
             
-            /* 기본 문단 스타일: Case 2(긴 문장) 대응을 위한 내어쓰기 설정 */
+            /* 기본 문단 스타일: Case 2 대응을 위한 내어쓰기 */
             .concept-body p, .answer-body p {{ 
                 margin: 4px 0;      
                 padding-left: 18px; 
                 text-indent: -18px; 
-                line-height: 1.35;  /* 글간격 70% 수준으로 축소 */
+                line-height: 1.45;
             }}
             
-            /* [핵심] Case 1 대응: 기호로 시작하는 문단은 내어쓰기 해제 */
+            /* [핵심] Case 1 대응: 특정 클래스가 붙은 문단은 내어쓰기 해제 */
             .concept-body p.no-indent, .answer-body p.no-indent {{
                 text-indent: 0;
                 padding-left: 0;
@@ -225,7 +225,6 @@ if df_raw is not None:
 
             .image-wrapper {{ margin: 10px 0; text-align: left; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
-            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 10px; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
@@ -235,8 +234,8 @@ if df_raw is not None:
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                .header-box {{ position: static; display: {header_box_display} !important; }}
-                .main-container {{ column-count: {print_column_count} !important; }}
+                .header-box {{ position: static; display: {h_display} !important; }}
+                .main-container {{ column-count: {p_count} !important; }}
             }}
         </style>
     </head>
