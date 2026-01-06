@@ -72,7 +72,6 @@ if df_raw is not None:
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
 # [수정 1] 마크다운 전처리 함수 추가
-# 일반 텍스트는 문단 분리(\n\n)를 하되, 표(Table) 구간은 줄바꿈(\n)만 유지하여 표 깨짐 방지
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan':
         return ""
@@ -84,11 +83,9 @@ def preprocess_markdown(text):
         line = line.strip()
         if i < len(lines) - 1:
             next_line = lines[i+1].strip()
-            # 현재 줄과 다음 줄이 모두 파이프(|)로 시작하면 표의 연속으로 간주 -> \n (붙이기)
             if line.startswith('|') and next_line.startswith('|'):
                 processed_lines.append(line + "\n")
             else:
-                # 그 외에는 문단 구분을 위해 -> \n\n (띄우기)
                 processed_lines.append(line + "\n\n")
         else:
             processed_lines.append(line)
@@ -129,6 +126,9 @@ if df_raw is not None:
     md_extensions = ['tables', 'fenced_code'] 
     sections_html = ""
 
+    # [수정 A] 대카테고리 중복 출력을 막기 위한 변수 초기화
+    last_main_cat = None
+
     # 소카테고리별로 그룹화하여 순회
     for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
         group_concept_html = ""
@@ -137,6 +137,16 @@ if df_raw is not None:
         valid_rows = group[group['소카테고리'] != ""]
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         
+        # [수정 B] 현재 그룹의 대카테고리 확인
+        current_main_cat = str(first_row.get('대카테고리', '')).strip()
+
+        # [수정 C] 대카테고리가 변경되었을 때만 헤더 HTML 추가
+        if current_main_cat and current_main_cat != last_main_cat:
+            sections_html += f"""
+            <div class="main-section-header">{current_main_cat}</div>
+            """
+            last_main_cat = current_main_cat # 현재 대카테고리를 '마지막'으로 업데이트
+
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
         sub_num_raw = str(first_row.get('숫소', '')).strip()
         try:
@@ -167,7 +177,6 @@ if df_raw is not None:
                     num_gu_val = str(raw_num_gu).strip()
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
 
-                # [수정 2] 개념 본문: 단순 replace가 아닌 전처리 함수 사용
                 c_body = markdown.markdown(preprocess_markdown(concept_raw), extensions=md_extensions)
                 
                 c_img_tag = ""
@@ -192,10 +201,8 @@ if df_raw is not None:
                     num_mun_val = str(raw_num_mun).strip()
                 num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
-                # [수정 3] 문제 본문: 기존 유지 (문제는 굵은 글씨 내 줄바꿈을 위해 <br> 사용)
                 p_body = markdown.markdown(problem_raw.replace('\n', '  \n'), extensions=md_extensions)
                 
-                # [수정 4] 정답 본문: 개념과 동일하게 전처리 함수 사용 (정답에도 표가 있을 경우 대비)
                 a_body = markdown.markdown(preprocess_markdown(answer_raw), extensions=md_extensions)
                 
                 p_img_tag = ""
@@ -262,6 +269,25 @@ if df_raw is not None:
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
             .main-container {{ text-align: left; {main_container_style} }}
             .section-container {{ margin-bottom: 15px; text-align: left; {section_break_style} }}
+            
+            /* [수정 D] 대카테고리 스타일 추가: 더 진한 배경과 테두리 */
+            .main-section-header {{
+                width: 100%;
+                background-color: #dbe4ef; /* 소카테고리(#edf2f7)보다 진한 색 */
+                padding: 10px 20px;
+                font-weight: bold;
+                font-size: 1.15em;
+                color: #2d3748;
+                border-left: 5px solid #4a5568; /* 더 진한 포인트 컬러 */
+                box-sizing: border-box;
+                margin-top: 25px;
+                margin-bottom: 10px;
+                text-align: left;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                page-break-after: avoid; /* 인쇄 시 제목만 덩그러니 남지 않도록 */
+            }}
+
             .section-header {{ width: 100%; background-color: #edf2f7; padding: 8px 20px; font-weight: bold; font-size: 1.0em; color: #718096; border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-top: 5px; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
             .sub-section {{ display: flex; width: 100%; text-align: left; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
@@ -294,13 +320,11 @@ if df_raw is not None:
             }}
             
             .answer-body p, .concept-body p {{
-                margin: 3px 0;      
+                margin: 3px 0;       
                 padding-left: 18px; 
                 text-indent: -18px; 
             }}
             
-            /* [수정 5] 표(Table) 스타일 보정 */
-            /* 표는 내어쓰기(text-indent)의 영향을 받지 않도록 초기화하고, 별도 스타일 적용 */
             .concept-body table, .answer-body table {{
                 text-indent: 0;
                 margin: 12px 0;
@@ -318,6 +342,7 @@ if df_raw is not None:
                 .print-button-container {{ display: none !important; }}
                 .header-box {{ position: static; display: {header_box_display} !important; }}
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; }}
+                .main-section-header {{ background-color: #dbe4ef !important; color: #2d3748 !important; }}
                 .problem-col {{ background-color: #fcfcfc !important; }}
                 body {{ padding: 0; margin: 0; }}
                 .main-container {{ column-count: {print_column_count} !important; -webkit-column-count: {print_column_count} !important; }}
