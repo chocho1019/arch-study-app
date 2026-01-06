@@ -33,12 +33,12 @@ def format_drive_link(link):
             return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return link
 
-# [핵심 수정] 텍스트가 겹치지 않도록 글머리 기호 패턴을 감지하여 클래스 부여
+# [핵심 수정] 하이픈(-) 및 각종 기호를 감지하여 동일한 들여쓰기 클래스 부여
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # 하이픈(-), 원문자, 숫자+점 등을 감지하여 'bullet-line' 클래스 부여
-    # 하이픈이 맨 처음에 오도록 설정하여 에러 방지
+    # 하이픈(-), 원문자, 숫자+점/괄호, 별표(*) 등을 감지
+    # 수정된 패턴: <p> 바로 뒤에 오는 기호들을 그룹화
     pattern = r'<p>([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
     return re.sub(pattern, r'<p class="bullet-line">\1', html_text)
 
@@ -51,7 +51,6 @@ def preprocess_markdown(text):
         if not line: continue
         if i < len(lines) - 1:
             next_line = lines[i+1].strip()
-            # 표(Table) 형식은 줄바꿈 하나만, 일반 텍스트는 두 개를 주어 Markdown 파싱 강화
             if line.startswith('|') and next_line.startswith('|'):
                 processed_lines.append(line + "\n")
             else:
@@ -83,7 +82,6 @@ if df_raw is not None:
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
 if df_raw is not None:
-    # 필터 로직
     st.sidebar.header("🔍 필터 설정")
     only_concept = st.sidebar.checkbox("개념만 보기")
     subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
@@ -148,7 +146,7 @@ if df_raw is not None:
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
                 
                 c_body = markdown.markdown(preprocess_markdown(concept_raw), extensions=md_extensions)
-                c_body = apply_custom_indent(c_body) # 스타일 보정 적용
+                c_body = apply_custom_indent(c_body)
                 
                 c_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(concept_img_url)}" class="content-img" loading="lazy"></div>' if concept_img_url and concept_img_url.lower() != "nan" else ""
                 group_concept_html += f'<div class="content-block"><div class="category-title">{num_gu_display} {cat} {freq_badge}</div><div class="concept-body">{c_body}</div>{c_img_tag}</div>'
@@ -159,13 +157,14 @@ if df_raw is not None:
                 except: num_mun_val = str(raw_num_mun).strip()
                 num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
                 p_body = markdown.markdown(problem_raw.replace('\n', '  \n'), extensions=md_extensions)
+                p_body = apply_custom_indent(p_body)
                 
                 a_body = markdown.markdown(preprocess_markdown(answer_raw), extensions=md_extensions)
-                a_body = apply_custom_indent(a_body) # 스타일 보정 적용
+                a_body = apply_custom_indent(a_body)
                 
                 p_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(problem_img_url)}" class="content-img problem-img" loading="lazy"></div>' if problem_img_url and problem_img_url.lower() != "nan" else ""
                 info_tag = f'<div class="info-tag">[{info} 출제년도]</div>' if info else ""
-                group_problem_html += f'<div class="content-block problem-block">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body.replace("<p>", "").replace("</p>", "")}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
+                group_problem_html += f'<div class="content-block problem-block">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body.replace("<p>", "").replace("</p>", "").replace("<p class=\"bullet-line\">", "")}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
         sections_html += f"""
         {main_header_html}
@@ -178,7 +177,6 @@ if df_raw is not None:
         </div>
         """
 
-    # 스타일 설정
     if only_concept:
         m_style = "column-count: 2; column-gap: 30px; column-rule: 1px solid #edf2f7; padding: 10px; column-fill: auto;"
         h_box_d, p_c_count, c_h_w, p_h_d, c_c_w, c_c_b = "none", "2", "100%", "none", "100%", "none"
@@ -218,20 +216,19 @@ if df_raw is not None:
             .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid; break-inside: avoid; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 5px; display: flex; align-items: center; }}
             
-            /* 핵심: 내어쓰기 스타일 보정 */
             .concept-body, .answer-body {{ color: #4a5568; font-size: 0.95em; }}
             .concept-body p, .answer-body p {{ 
                 margin: 4px 0; 
-                line-height: 1.5;
-                /* 기본 상태는 내어쓰기 없음 */
+                line-height: 1.6;
                 padding-left: 0;
                 text-indent: 0;
             }}
 
-            /* 글머리 기호가 있는 라인만 내어쓰기 적용 */
+            /* [핵심 수정] 글머리 기호 시작점과 줄바꿈 시 들여쓰기 조절 */
             .bullet-line {{
-                padding-left: 20px !important;
-                text-indent: -20px !important;
+                padding-left: 1.2em !important;   /* 기호가 차지할 공간 */
+                text-indent: -1.2em !important;  /* 첫 줄만 왼쪽으로 당겨서 기호 배치 */
+                margin-left: 0.2em !important;   /* 전체적인 시작 위치를 숫자 기호와 정렬 */
             }}
 
             .image-wrapper {{ margin: 8px 0; }}
