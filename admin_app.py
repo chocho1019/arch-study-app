@@ -194,10 +194,8 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            /* line-height를 1.6에서 1.3으로 축소하여 줄 간격 최적화 */
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.3; text-align: left; }}
-            
-            /* 마크다운에서 생성되는 p 태그의 상하 여백 제거 */
+            /* 1. 줄 간격 최적화 (1.45로 미세 조정) */
+            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.45; text-align: left; }}
             p {{ margin: 0; padding: 0; }}
             
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
@@ -215,23 +213,45 @@ if df_raw is not None:
             .concept-col {{ width: {c_col_width}; border-right: {c_col_border}; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_col_display}; -webkit-print-color-adjust: exact; }}
             
-            /* content-block 간격 조정 */
-            .content-block {{ width: 100%; margin-bottom: 10px; page-break-inside: avoid; text-align: left; }}
-            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 4px; display: flex; align-items: center; justify-content: flex-start; }}
+            .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid; text-align: left; }}
+            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 6px; display: flex; align-items: center; justify-content: flex-start; }}
             
-            /* 줄 간격 좁힘 */
-            .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; line-height: 1.3; }}
+            /* 2. 들여쓰기 및 글머리 기호 내어쓰기 설정 */
+            /* 개념 본문: 타이틀보다 한 칸(18px) 들여쓰기 */
+            .concept-body {{ 
+                color: #4a5568; 
+                font-size: 0.98em; 
+                margin-left: 18px; 
+                line-height: 1.45;
+            }}
             
-            .image-wrapper {{ margin: 8px 0; text-align: left; }}
+            /* 보기/글머리 기호가 있는 문장 정렬 (워드 스타일) */
+            /* 불렛이나 숫자로 시작하는 문장이 길어져도 기호 뒤에서 정렬되도록 함 */
+            .concept-body p, .answer-body p {{
+                padding-left: 15px;
+                text-indent: -15px;
+                margin-bottom: 2px;
+            }}
+            
+            .image-wrapper {{ margin: 10px 0 10px 18px; text-align: left; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
-            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 8px; }}
-            .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; text-align: left; }}
+            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 10px; }}
+            .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 4px; text-align: left; }}
-            .problem-body {{ margin-bottom: 4px; color: #2d3748; text-align: left; line-height: 1.3; }}
-            .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; line-height: 1.3; }}
             
-            table {{ border-collapse: collapse; width: 100%; margin: 8px 0; border-top: 2px solid #cbd5e0; }}
-            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
+            /* 문제 텍스트는 들여쓰지 않음 */
+            .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; line-height: 1.45; }}
+            
+            /* 3. 문제의 보기: 문제보다 한 칸(18px) 들여쓰기 */
+            .answer-body {{ 
+                color: #4a5568; 
+                padding-left: 18px; 
+                text-align: left; 
+                line-height: 1.45; 
+            }}
+            
+            table {{ border-collapse: collapse; width: 95%; margin: 12px 0 12px 18px; border-top: 2px solid #cbd5e0; }}
+            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 6px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
 
@@ -276,7 +296,7 @@ if df_raw is not None:
     </html>
     """
 
-    iframe_height = max(2000, len(df) * 220) 
+    iframe_height = max(2000, len(df) * 240) 
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
