@@ -23,13 +23,17 @@ def load_data(url):
     except Exception:
         return None
 
-# 구글 드라이브 링크 변환 함수 (이미지 표시용)
+# 구글 드라이브 링크 변환 함수 (가장 안정적인 thumbnail API 사용)
 def format_drive_link(link):
+    if not link or str(link).lower() == 'nan':
+        return ""
     if "drive.google.com" in link:
-        # 파일 ID 추출 후 직접 보기 링크로 변환
+        # 파일 ID 추출 (d/ID/ 형태 또는 id=ID 형태 대응)
         file_id_match = re.search(r'd/([^/]+)', link) or re.search(r'id=([^&]+)', link)
         if file_id_match:
-            return f"https://docs.google.com/uc?export=view&id={file_id_match.group(1)}"
+            file_id = file_id_match.group(1)
+            # uc?export=view 대신 thumbnail 엔드포인트 사용 (성능 및 안정성 우수)
+            return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return link
 
 df_raw = load_data(csv_url)
@@ -104,7 +108,7 @@ if df_raw is not None:
         for _, row in group.iterrows():
             cat = str(row.get('구분', '')).strip()
             concept_raw = str(row.get('개념', '')).strip()
-            concept_img_url = str(row.get('개념이미지', '')).strip() # [추가] 개념이미지 열 데이터
+            concept_img_url = str(row.get('개념이미지', '')).strip()
             problem_raw = str(row.get('문제', '')).strip()
             answer_raw = str(row.get('정답', '')).strip()
             info = str(row.get('출제년도', '')).strip()
@@ -126,15 +130,13 @@ if df_raw is not None:
                 num_mun_val = str(raw_num_mun).strip()
             num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
-            # 개념 셀 HTML 구성 (구분 - 개념 - 개념이미지 순)
-            if cat or concept_raw or concept_img_url:
+            if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
                 c_body = markdown.markdown(concept_raw, extensions=md_extensions)
                 
-                # 이미지 태그 생성
                 img_tag = ""
                 if concept_img_url and concept_img_url.lower() != "nan":
                     direct_url = format_drive_link(concept_img_url)
-                    img_tag = f'<div class="concept-image-wrapper"><img src="{direct_url}" class="concept-img"></div>'
+                    img_tag = f'<div class="concept-image-wrapper"><img src="{direct_url}" class="concept-img" loading="lazy"></div>'
                 
                 group_concept_html += f"""
                 <div class="content-block">
@@ -166,7 +168,6 @@ if df_raw is not None:
         </div>
         """
 
-    # --- 핵심 로직: 개념만 보기 모드 변수 설정 ---
     if only_concept:
         main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
         header_box_display = "none"
@@ -195,76 +196,29 @@ if df_raw is not None:
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; text-align: left; }}
-            
-            .print-button-container {{
-                padding: 10px 20px;
-                background: white;
-                border-bottom: 1px solid #eee;
-                display: block;
-                text-align: left;
-            }}
-            .btn-print {{
-                background-color: #4CAF50;
-                color: white;
-                padding: 8px 16px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: bold;
-            }}
-            
+            .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
+            .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
             .master-thead {{ display: table-header-group; }} 
-            
-            .header-box {{
-                display: {header_box_display};
-                background-color: #f8f9fa;
-                border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6;
-                font-weight: bold; 
-                text-align: center; 
-                position: sticky; top: 0; z-index: 100;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }}
+            .header-box {{ display: {header_box_display}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
             .header-box .concept-h {{ width: {c_h_width}; padding: 4px 12px; box-sizing: border-box; border-right: {c_col_border}; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
-
             .main-container {{ text-align: left; {main_container_style} }}
-            
-            .section-container {{ 
-                margin-bottom: 15px; 
-                text-align: left; 
-                {section_break_style}
-            }}
-            
-            .section-header {{
-                width: 100%; background-color: #edf2f7;
-                padding: 8px 20px; font-weight: bold; font-size: 1.0em;
-                color: #718096; border-left: 5px solid #cbd5e0;
-                box-sizing: border-box; 
-                margin-top: 5px;
-                text-align: left;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }}
+            .section-container {{ margin-bottom: 15px; text-align: left; {section_break_style} }}
+            .section-header {{ width: 100%; background-color: #edf2f7; padding: 8px 20px; font-weight: bold; font-size: 1.0em; color: #718096; border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-top: 5px; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
             .sub-section {{ display: flex; width: 100%; text-align: left; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
             .concept-col {{ width: {c_col_width}; border-right: {c_col_border}; padding-left: 30px; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_col_display}; -webkit-print-color-adjust: exact; }}
-            
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
             .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; }}
-            
-            /* 이미지 스타일 [추가] */
             .concept-image-wrapper {{ margin-top: 10px; text-align: left; }}
-            .concept-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; }}
-
+            .concept-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
             .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; }}
-
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
@@ -276,10 +230,7 @@ if df_raw is not None:
                 .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; }}
                 .problem-col {{ background-color: #fcfcfc !important; }}
                 body {{ padding: 0; margin: 0; }}
-                .main-container {{ 
-                    column-count: {print_column_count} !important; 
-                    -webkit-column-count: {print_column_count} !important; 
-                }}
+                .main-container {{ column-count: {print_column_count} !important; -webkit-column-count: {print_column_count} !important; }}
             }}
         </style>
     </head>
@@ -314,7 +265,7 @@ if df_raw is not None:
     </html>
     """
 
-    iframe_height = max(2000, len(df) * 150)
+    iframe_height = max(2000, len(df) * 200) # 이미지 로딩 고려 높이 약간 상향
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
