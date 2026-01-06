@@ -17,15 +17,12 @@ def load_data(url):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
-        
         if '개념빈출' in df.columns:
             df['개념빈출'] = pd.to_numeric(df['개념빈출'], errors='coerce').fillna(0).astype(int)
-        
         return df.fillna("")
     except Exception:
         return None
 
-# 구글 드라이브 링크 변환 함수
 def format_drive_link(link):
     if not link or str(link).lower() == 'nan':
         return ""
@@ -38,21 +35,17 @@ def format_drive_link(link):
 
 df_raw = load_data(csv_url)
 
-# 그룹 ID 생성 로직
 if df_raw is not None:
     def extract_group_id_robust(row):
         pk_val = str(row.get('pk', '')).strip()
         if pk_val and pk_val.lower() != 'nan':
             parts = pk_val.split('-')
-            if len(parts) >= 3:
-                return "-".join(parts[:3]) 
+            if len(parts) >= 3: return "-".join(parts[:3]) 
             return pk_val
-        
         fpk_val = str(row.get('fpk', '')).strip()
         if fpk_val and fpk_val.lower() != 'nan':
             parts = fpk_val.split('-')
-            if len(parts) >= 3:
-                return "-".join(parts[:3])
+            if len(parts) >= 3: return "-".join(parts[:3])
             return fpk_val
         return None
 
@@ -63,8 +56,7 @@ if df_raw is not None:
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
 def preprocess_markdown(text):
-    if not text or str(text).lower() == 'nan':
-        return ""
+    if not text or str(text).lower() == 'nan': return ""
     lines = text.splitlines()
     processed_lines = []
     for i, line in enumerate(lines):
@@ -82,7 +74,6 @@ def preprocess_markdown(text):
 if df_raw is not None:
     st.sidebar.header("🔍 필터 설정")
     only_concept = st.sidebar.checkbox("개념만 보기")
-    
     subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
     selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
     
@@ -102,7 +93,6 @@ if df_raw is not None:
         filtered_df = filtered_df[filtered_df['개념빈출'] >= 3]
     elif freq_filter == "5회 이상 출제":
         filtered_df = filtered_df[filtered_df['개념빈출'] >= 5]
-        
     sort_option = st.sidebar.checkbox("빈출 높은 순으로 정렬")
     if sort_option:
         filtered_df = filtered_df.sort_values(by='개념빈출', ascending=False)
@@ -115,14 +105,14 @@ if df_raw is not None:
     for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
         group_concept_html = ""
         group_problem_html = ""
-        
         valid_rows = group[group['소카테고리'] != ""]
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
-        
         current_main_cat = str(first_row.get('대카테고리', '')).strip()
 
+        # 대카테고리 변경 시 헤더 추가
+        main_header_html = ""
         if current_main_cat and current_main_cat != last_main_cat:
-            sections_html += f'<div class="main-section-header">{current_main_cat}</div>'
+            main_header_html = f'<div class="main-section-header">{current_main_cat}</div>'
             last_main_cat = current_main_cat
 
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
@@ -146,52 +136,27 @@ if df_raw is not None:
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
                 freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
                 raw_num_gu = row.get('숫구', '')
-                try:
-                    num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
-                except:
-                    num_gu_val = str(raw_num_gu).strip()
+                try: num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
+                except: num_gu_val = str(raw_num_gu).strip()
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
                 c_body = markdown.markdown(preprocess_markdown(concept_raw), extensions=md_extensions)
-                
-                c_img_tag = ""
-                if concept_img_url and concept_img_url.lower() != "nan":
-                    c_direct_url = format_drive_link(concept_img_url)
-                    c_img_tag = f'<div class="image-wrapper"><img src="{c_direct_url}" class="content-img" loading="lazy"></div>'
-                
-                group_concept_html += f"""
-                <div class="content-block">
-                    <div class="category-title">{num_gu_display} {cat} {freq_badge}</div>
-                    <div class="concept-body">{c_body}</div>
-                    {c_img_tag}
-                </div>
-                """
+                c_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(concept_img_url)}" class="content-img" loading="lazy"></div>' if concept_img_url and concept_img_url.lower() != "nan" else ""
+                group_concept_html += f'<div class="content-block"><div class="category-title">{num_gu_display} {cat} {freq_badge}</div><div class="concept-body">{c_body}</div>{c_img_tag}</div>'
 
             if not only_concept and problem_raw and problem_raw.lower() != "nan":
                 raw_num_mun = row.get('숫문', '')
-                try:
-                    num_mun_val = str(int(float(raw_num_mun))) if str(raw_num_mun).strip() and str(raw_num_mun) != "nan" else str(raw_num_mun).strip()
-                except:
-                    num_mun_val = str(raw_num_mun).strip()
+                try: num_mun_val = str(int(float(raw_num_mun))) if str(raw_num_mun).strip() and str(raw_num_mun) != "nan" else str(raw_num_mun).strip()
+                except: num_mun_val = str(raw_num_mun).strip()
                 num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
                 p_body = markdown.markdown(problem_raw.replace('\n', '  \n'), extensions=md_extensions)
                 a_body = markdown.markdown(preprocess_markdown(answer_raw), extensions=md_extensions)
-                
-                p_img_tag = ""
-                if problem_img_url and problem_img_url.lower() != "nan":
-                    p_direct_url = format_drive_link(problem_img_url)
-                    p_img_tag = f'<div class="image-wrapper"><img src="{p_direct_url}" class="content-img problem-img" loading="lazy"></div>'
-                
+                p_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(problem_img_url)}" class="content-img problem-img" loading="lazy"></div>' if problem_img_url and problem_img_url.lower() != "nan" else ""
                 info_tag = f'<div class="info-tag">[{info} 출제년도]</div>' if info else ""
-                group_problem_html += f"""
-                <div class="content-block problem-block">
-                    {info_tag}
-                    <div class="problem-body"><strong>{num_mun_display}{p_body.replace("<p>", "").replace("</p>", "")}</strong></div>
-                    {p_img_tag}
-                    <div class="answer-body">{a_body}</div>
-                </div>
-                """
+                group_problem_html += f'<div class="content-block problem-block">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body.replace("<p>", "").replace("</p>", "")}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
+        # 핵심 수정: 대카테고리 헤더와 소카테고리 컨테이너를 필요 시 하나로 묶음
         sections_html += f"""
+        {main_header_html}
         <div class="section-container">
             <div class="section-header">{category_title}</div>
             <div class="sub-section">
@@ -201,25 +166,13 @@ if df_raw is not None:
         </div>
         """
 
-    # --- 스타일 및 레이아웃 설정 ---
     if only_concept:
-        # 다단 겹침 방지를 위해 column-fill: auto 추가 및 최적화
         main_container_style = "column-count: 2; column-gap: 30px; column-rule: 1px solid #edf2f7; padding: 10px; column-fill: auto;"
-        header_box_display = "none"
-        print_column_count = "2"
-        c_h_width = "100%"
-        p_h_display = "none"
-        c_col_width = "100%"
-        c_col_border = "none"
-        section_break_style = "break-inside: avoid-column; display: block; width: 100%;" # 겹침 방지 핵심
+        header_box_display, print_column_count, c_h_width, p_h_display, c_col_width, c_col_border = "none", "2", "100%", "none", "100%", "none"
+        section_break_style = "break-inside: avoid-column; display: block; width: 100%;"
     else:
         main_container_style = ""
-        header_box_display = "flex"
-        print_column_count = "1"
-        c_h_width = "60%"
-        p_h_display = "block"
-        c_col_width = "60%"
-        c_col_border = "1px solid #edf2f7"
+        header_box_display, print_column_count, c_h_width, p_h_display, c_col_width, c_col_border = "flex", "1", "60%", "block", "60%", "1px solid #edf2f7"
         section_break_style = "page-break-inside: avoid;"
 
     full_html_page = f"""
@@ -235,10 +188,8 @@ if df_raw is not None:
             .header-box {{ display: {header_box_display}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; }}
             .header-box .concept-h {{ width: {c_h_width}; padding: 4px 12px; box-sizing: border-box; border-right: {c_col_border}; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
-            
             .main-container {{ text-align: left; {main_container_style} width: 100%; box-sizing: border-box; }}
             
-            /* 대카테고리: 다단 모드에서 겹침 방지 */
             .main-section-header {{
                 width: 100%;
                 background-color: #dbe4ef;
@@ -249,7 +200,9 @@ if df_raw is not None:
                 border-left: 5px solid #4a5568;
                 box-sizing: border-box;
                 margin: 15px 0 10px 0;
-                break-inside: avoid-column; 
+                /* 핵심 수정: 아래 요소(소카테고리)와 절대 떨어지지 않음 */
+                break-inside: avoid-column;
+                page-break-after: avoid; 
                 -webkit-column-break-inside: avoid;
                 -webkit-print-color-adjust: exact;
             }}
@@ -260,7 +213,6 @@ if df_raw is not None:
             .column {{ display: flex; flex-direction: column; padding: 5px 10px; box-sizing: border-box; }}
             .concept-col {{ width: {c_col_width}; border-right: {c_col_border}; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
-            
             .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid; break-inside: avoid; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 5px; display: flex; align-items: center; }}
             .concept-body {{ color: #4a5568; font-size: 0.95em; padding-left: 15px; text-indent: -15px; }}
@@ -270,35 +222,26 @@ if df_raw is not None:
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 4px; }}
             .answer-body {{ color: #4a5568; padding-left: 15px; text-indent: -15px; font-size: 0.95em; }}
             .answer-body p, .concept-body p {{ margin: 2px 0; }}
-
             table {{ border-collapse: collapse; width: 100%; margin: 10px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 6px; font-size: 0.85em; text-align: left; }}
             th {{ background-color: #f7fafc; font-weight: bold; }}
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                .main-container {{ 
-                    column-count: {print_column_count} !important; 
-                    -webkit-column-count: {print_column_count} !important;
-                }}
-                .section-container, .main-section-header {{
-                    break-inside: avoid-column !important;
-                    -webkit-column-break-inside: avoid !important;
+                .main-container {{ column-count: {print_column_count} !important; -webkit-column-count: {print_column_count} !important; }}
+                .section-container {{ break-inside: avoid-column !important; -webkit-column-break-inside: avoid !important; }}
+                .main-section-header {{ 
+                    break-inside: avoid-column !important; 
+                    page-break-after: avoid !important; 
                 }}
             }}
         </style>
     </head>
     <body>
-        <div class="print-button-container">
-            <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
-        </div>
+        <div class="print-button-container"><button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button></div>
         <table class="master-table">
-            <thead>
-                <tr><td><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr>
-            </thead>
-            <tbody>
-                <tr><td><div class="main-container">{sections_html}</div></td></tr>
-            </tbody>
+            <thead><tr><td><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr></thead>
+            <tbody><tr><td><div class="main-container">{sections_html}</div></td></tr></tbody>
         </table>
     </body>
     </html>
