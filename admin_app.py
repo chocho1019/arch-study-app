@@ -71,6 +71,30 @@ if df_raw is not None:
 
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
+# [수정 1] 마크다운 전처리 함수 추가
+# 일반 텍스트는 문단 분리(\n\n)를 하되, 표(Table) 구간은 줄바꿈(\n)만 유지하여 표 깨짐 방지
+def preprocess_markdown(text):
+    if not text or str(text).lower() == 'nan':
+        return ""
+    
+    lines = text.splitlines()
+    processed_lines = []
+    
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if i < len(lines) - 1:
+            next_line = lines[i+1].strip()
+            # 현재 줄과 다음 줄이 모두 파이프(|)로 시작하면 표의 연속으로 간주 -> \n (붙이기)
+            if line.startswith('|') and next_line.startswith('|'):
+                processed_lines.append(line + "\n")
+            else:
+                # 그 외에는 문단 구분을 위해 -> \n\n (띄우기)
+                processed_lines.append(line + "\n\n")
+        else:
+            processed_lines.append(line)
+            
+    return "".join(processed_lines)
+
 if df_raw is not None:
     # --- 필터 영역 ---
     st.sidebar.header("🔍 필터 설정")
@@ -102,7 +126,6 @@ if df_raw is not None:
 
     df = filtered_df
 
-    # [수정 1] nl2br 확장 제거 (개념/정답을 문단으로 분리하기 위함)
     md_extensions = ['tables', 'fenced_code'] 
     sections_html = ""
 
@@ -144,9 +167,8 @@ if df_raw is not None:
                     num_gu_val = str(raw_num_gu).strip()
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
 
-                # [수정 2] 개념 본문: 줄바꿈(\n)을 두 번 줄바꿈(\n\n)으로 변경하여 각각 <p> 태그 생성
-                # 이렇게 하면 각 줄이 독립된 문단이 되어 내어쓰기(text-indent)가 줄마다 적용됨 (Case 1 해결)
-                c_body = markdown.markdown(concept_raw.replace('\n', '\n\n'), extensions=md_extensions)
+                # [수정 2] 개념 본문: 단순 replace가 아닌 전처리 함수 사용
+                c_body = markdown.markdown(preprocess_markdown(concept_raw), extensions=md_extensions)
                 
                 c_img_tag = ""
                 if concept_img_url and concept_img_url.lower() != "nan":
@@ -170,11 +192,11 @@ if df_raw is not None:
                     num_mun_val = str(raw_num_mun).strip()
                 num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
 
-                # [수정 3] 문제 본문: 기존처럼 Bold 처리 내에서 줄바꿈만 하기 위해 '  \n' (<br>) 사용
+                # [수정 3] 문제 본문: 기존 유지 (문제는 굵은 글씨 내 줄바꿈을 위해 <br> 사용)
                 p_body = markdown.markdown(problem_raw.replace('\n', '  \n'), extensions=md_extensions)
                 
-                # [수정 4] 정답 본문: 개념과 동일하게 독립 문단으로 처리 (보기가 줄바꿈 되어 있을 경우를 위함)
-                a_body = markdown.markdown(answer_raw.replace('\n', '\n\n'), extensions=md_extensions)
+                # [수정 4] 정답 본문: 개념과 동일하게 전처리 함수 사용 (정답에도 표가 있을 경우 대비)
+                a_body = markdown.markdown(preprocess_markdown(answer_raw), extensions=md_extensions)
                 
                 p_img_tag = ""
                 if problem_img_url and problem_img_url.lower() != "nan":
@@ -271,17 +293,27 @@ if df_raw is not None:
                 line-height: 1.35; 
             }}
             
-            /* [수정 5] p태그 마진 조정으로 리스트 간격 최적화 */
             .answer-body p, .concept-body p {{
                 margin: 3px 0;      
                 padding-left: 18px; 
                 text-indent: -18px; 
             }}
-
+            
+            /* [수정 5] 표(Table) 스타일 보정 */
+            /* 표는 내어쓰기(text-indent)의 영향을 받지 않도록 초기화하고, 별도 스타일 적용 */
+            .concept-body table, .answer-body table {{
+                text-indent: 0;
+                margin: 12px 0;
+                border-collapse: collapse;
+                width: 100%;
+                border-top: 2px solid #cbd5e0;
+            }}
+            
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
+            
             @media print {{
                 .print-button-container {{ display: none !important; }}
                 .header-box {{ position: static; display: {header_box_display} !important; }}
