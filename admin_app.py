@@ -16,8 +16,8 @@ def load_data(url):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
-        if '빈출' in df.columns:
-            df['빈출'] = pd.to_numeric(df['빈출'], errors='coerce').fillna(0).astype(int)
+        if '개념빈출' in df.columns:
+            df['개념빈출'] = pd.to_numeric(df['개념빈출'], errors='coerce').fillna(0).astype(int)
         return df.fillna("")
     except Exception:
         return None
@@ -50,13 +50,13 @@ if df_raw is not None:
 
     freq_filter = st.sidebar.radio("빈출도 필터", ["전체", "3회 이상 출제", "5회 이상 출제"])
     if freq_filter == "3회 이상 출제":
-        filtered_df = filtered_df[filtered_df['빈출'] >= 3]
+        filtered_df = filtered_df[filtered_df['개념빈출'] >= 3]
     elif freq_filter == "5회 이상 출제":
-        filtered_df = filtered_df[filtered_df['빈출'] >= 5]
+        filtered_df = filtered_df[filtered_df['개념빈출'] >= 5]
         
     sort_option = st.sidebar.checkbox("빈출 높은 순으로 정렬")
     if sort_option:
-        filtered_df = filtered_df.sort_values(by='빈출', ascending=False)
+        filtered_df = filtered_df.sort_values(by='개념빈출', ascending=False)
 
     df = filtered_df
 
@@ -97,8 +97,8 @@ if df_raw is not None:
             concept_raw = str(row.get('개념', '')).strip()
             problem_raw = str(row.get('문제', '')).strip()
             answer_raw = str(row.get('정답', '')).strip()
-            info = str(row.get('출제', '')).strip()
-            freq_val = row.get('빈출', 0)
+            info = str(row.get('출제년도', '')).strip()
+            freq_val = row.get('개념빈출', 0)
             
             freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
 
@@ -128,7 +128,7 @@ if df_raw is not None:
             if problem_raw:
                 p_body = markdown.markdown(problem_raw, extensions=md_extensions)
                 a_body = markdown.markdown(answer_raw, extensions=md_extensions)
-                info_tag = f'<div class="info-tag">[{info} 출제]</div>' if info else ""
+                info_tag = f'<div class="info-tag">[{info} 출제년도]</div>' if info else ""
                 group_problem_html += f"""
                 <div class="content-block problem-block">
                     {info_tag}
