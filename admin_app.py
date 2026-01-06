@@ -17,8 +17,10 @@ def load_data(url):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
+        
         if '개념빈출' in df.columns:
             df['개념빈출'] = pd.to_numeric(df['개념빈출'], errors='coerce').fillna(0).astype(int)
+        
         return df.fillna("")
     except Exception:
         return None
@@ -34,34 +36,42 @@ def format_drive_link(link):
             return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return link
 
-# [수정] 내어쓰기 케이스 분류 함수 (오류 해결 버전)
-def apply_custom_indent(html_text):
-    if not html_text:
-        return ""
-    # 오류가 발생했던 대시(-)와 특수문자 범위를 가장 안전한 방식으로 재작성했습니다.
-    # 기호로 시작하는 문단 패턴: ①~⑮, ❶~⓯, 숫자), 숫자., -, *, • 등
-    # 하이픈(-)은 대괄호 안에서 맨 앞에 두어 범위 연산자로 인식되지 않게 처리했습니다.
-    pattern = r'<p>([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
-    return re.sub(pattern, r'<p class="no-indent">\1', html_text)
-
 df_raw = load_data(csv_url)
 
+# [수정] 그룹 ID 생성 로직 강화 (필터링 전 원본 데이터에 적용)
+# 개념과 문제를 강력하게 묶어주기 위해 ffill(Forward Fill) 방식을 사용하여
+# 정보가 부족한 문제 행도 상위 개념의 ID를 물려받게 함
 if df_raw is not None:
     def extract_group_id_robust(row):
+        # 1. PK 확인 (개념 행일 확률 높음)
         pk_val = str(row.get('pk', '')).strip()
         if pk_val and pk_val.lower() != 'nan':
             parts = pk_val.split('-')
-            if len(parts) >= 3: return "-".join(parts[:3])
+            if len(parts) >= 3:
+                return "-".join(parts[:3]) # 예: A-01-01
             return pk_val
+        
+        # 2. FPK 확인 (문제 행일 확률 높음)
         fpk_val = str(row.get('fpk', '')).strip()
         if fpk_val and fpk_val.lower() != 'nan':
             parts = fpk_val.split('-')
-            if len(parts) >= 3: return "-".join(parts[:3])
+            if len(parts) >= 3:
+                return "-".join(parts[:3])
             return fpk_val
+        
+        # 3. 둘 다 없으면 None 반환 (이후 ffill로 채움)
         return None
 
+    # 전체 데이터에 대해 그룹 ID 1차 생성
     df_raw['sub_cat_id'] = df_raw.apply(extract_group_id_robust, axis=1)
-    df_raw['sub_cat_id'] = df_raw['sub_cat_id'].ffill().fillna("ETC")
+    
+    # [핵심] fpk조차 누락된 고아 문제들을 위해, 바로 위 행(개념)의 ID를 물려받음 (Forward Fill)
+    # 이를 통해 붕 떠있는 문제들이 제자리(개념 옆)로 찾아감
+    df_raw['sub_cat_id'] = df_raw['sub_cat_id'].ffill()
+    
+    # 그래도 비어있는 값은 ETC 처리
+    df_raw['sub_cat_id'] = df_raw['sub_cat_id'].fillna("ETC")
+
 
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
@@ -69,11 +79,17 @@ if df_raw is not None:
     # --- 필터 영역 ---
     st.sidebar.header("🔍 필터 설정")
     only_concept = st.sidebar.checkbox("개념만 보기")
+    
     subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
     selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
     
-    filtered_df = df_raw if selected_subject == "전체" else df_raw[df_raw['과목'] == selected_subject]
-    main_cat_list = ["전체"] + sorted(list(filtered_df['대카테고리'].unique())) if '대카테고리' in filtered_df.columns else ["전체"]
+    if selected_subject != "전체":
+        filtered_df = df_raw[df_raw['과목'] == selected_subject]
+        main_cat_list = ["전체"] + sorted(list(filtered_df['대카테고리'].unique()))
+    else:
+        filtered_df = df_raw
+        main_cat_list = ["전체"] + sorted(list(df_raw['대카테고리'].unique())) if '대카테고리' in df_raw.columns else ["전체"]
+    
     selected_main_cat = st.sidebar.selectbox("대카테고리 선택", main_cat_list)
     if selected_main_cat != "전체":
         filtered_df = filtered_df[filtered_df['대카테고리'] == selected_main_cat]
@@ -89,12 +105,19 @@ if df_raw is not None:
         filtered_df = filtered_df.sort_values(by='개념빈출', ascending=False)
 
     df = filtered_df
+
+    # [삭제] 기존의 불완전했던 get_group_id 로직 삭제
+    # 이미 상단에서 'sub_cat_id'를 완벽하게 생성했으므로 바로 그룹핑에 들어감
+    
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     sections_html = ""
 
+    # 소카테고리별로 그룹화하여 순회
     for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
         group_concept_html = ""
         group_problem_html = ""
+        
+        # 해당 그룹의 제목(소카테고리 이름)을 가져오기 위해 pk가 있는 행을 우선 탐색
         valid_rows = group[group['소카테고리'] != ""]
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         
@@ -107,6 +130,7 @@ if df_raw is not None:
         category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
 
         for _, row in group.iterrows():
+            # 데이터 추출
             cat = str(row.get('구분', '')).strip()
             concept_raw = str(row.get('개념', '')).strip()
             concept_img_url = str(row.get('개념이미지', '')).strip()
@@ -116,8 +140,10 @@ if df_raw is not None:
             info = str(row.get('출제년도', '')).strip()
             freq_val = row.get('개념빈출', 0)
             
+            # 1. 개념 영역 렌더링 (내용이 있는 경우만)
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
                 freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
+                
                 raw_num_gu = row.get('숫구', '')
                 try:
                     num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
@@ -126,8 +152,6 @@ if df_raw is not None:
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
 
                 c_body = markdown.markdown(concept_raw, extensions=md_extensions)
-                c_body = apply_custom_indent(c_body) 
-
                 c_img_tag = ""
                 if concept_img_url and concept_img_url.lower() != "nan":
                     c_direct_url = format_drive_link(concept_img_url)
@@ -141,6 +165,7 @@ if df_raw is not None:
                 </div>
                 """
 
+            # 2. 문제 영역 렌더링 (문제 내용이 있는 모든 행)
             if problem_raw and problem_raw.lower() != "nan":
                 raw_num_mun = row.get('숫문', '')
                 try:
@@ -151,7 +176,6 @@ if df_raw is not None:
 
                 p_body = markdown.markdown(problem_raw, extensions=md_extensions)
                 a_body = markdown.markdown(answer_raw, extensions=md_extensions)
-                a_body = apply_custom_indent(a_body)
                 
                 p_img_tag = ""
                 if problem_img_url and problem_img_url.lower() != "nan":
@@ -168,6 +192,7 @@ if df_raw is not None:
                 </div>
                 """
 
+        # 소카테고리 컨테이너 생성
         sections_html += f"""
         <div class="section-container">
             <div class="section-header">{category_title}</div>
@@ -178,13 +203,27 @@ if df_raw is not None:
         </div>
         """
 
-    # 스타일 변수 설정
+    # 스타일 설정 및 HTML 조립 (기존과 동일)
     if only_concept:
-        m_style, h_display, p_count, c_h_w, p_h_d, c_c_w, c_c_b, p_c_d, s_b_style = \
-        "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;", "none", "2", "100%", "none", "100%", "none", "none", "break-inside: avoid; display: inline-block; width: 100%;"
+        main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
+        header_box_display = "none"
+        print_column_count = "2"
+        c_h_width = "100%"
+        p_h_display = "none"
+        c_col_width = "100%"
+        c_col_border = "none"
+        p_col_display = "none"
+        section_break_style = "break-inside: avoid; display: inline-block; width: 100%;"
     else:
-        m_style, h_display, p_count, c_h_w, p_h_d, c_c_w, c_c_b, p_c_d, s_b_style = \
-        "", "flex", "1", "60%", "block", "60%", "1px solid #edf2f7", "flex", "page-break-inside: avoid;"
+        main_container_style = ""
+        header_box_display = "flex"
+        print_column_count = "1"
+        c_h_width = "60%"
+        p_h_display = "block"
+        c_col_width = "60%"
+        c_col_border = "1px solid #edf2f7"
+        p_col_display = "flex"
+        section_break_style = "page-break-inside: avoid;"
 
     full_html_page = f"""
     <!DOCTYPE html>
@@ -196,64 +235,99 @@ if df_raw is not None:
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
-            .header-box {{ display: {h_display}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-            .header-box .concept-h {{ width: {c_h_w}; padding: 4px 12px; box-sizing: border-box; border-right: {c_c_b}; }}
-            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_d}; }}
-            .main-container {{ text-align: left; {m_style} }}
-            .section-container {{ margin-bottom: 15px; text-align: left; {s_b_style} }}
+            .master-thead {{ display: table-header-group; }} 
+            .header-box {{ display: {header_box_display}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+            .header-box .concept-h {{ width: {c_h_width}; padding: 4px 12px; box-sizing: border-box; border-right: {c_col_border}; }}
+            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_display}; }}
+            .main-container {{ text-align: left; {main_container_style} }}
+            .section-container {{ margin-bottom: 15px; text-align: left; {section_break_style} }}
             .section-header {{ width: 100%; background-color: #edf2f7; padding: 8px 20px; font-weight: bold; font-size: 1.0em; color: #718096; border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-top: 5px; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
             .sub-section {{ display: flex; width: 100%; text-align: left; }}
             .column {{ display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; text-align: left; }}
-            .concept-col {{ width: {c_c_w}; border-right: {c_c_b}; padding-left: 30px; }}
-            .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_c_d}; -webkit-print-color-adjust: exact; }}
+            .concept-col {{ width: {c_col_width}; border-right: {c_col_border}; padding-left: 30px; }}
+            .problem-col {{ width: 40%; background-color: #fcfcfc; padding-left: 25px; display: {p_col_display}; -webkit-print-color-adjust: exact; }}
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
             
-            /* 기본 문단 스타일: Case 2 대응을 위한 내어쓰기 */
-            .concept-body p, .answer-body p {{ 
-                margin: 4px 0;      
-                padding-left: 18px; 
-                text-indent: -18px; 
-                line-height: 1.45;
+            /* [수정] 개념 본문: 내어쓰기(Hanging Indent) 적용 */
+            .concept-body {{ 
+                color: #4a5568; 
+                font-size: 0.98em; 
+                text-align: left;
+                padding-left: 18px; /* 둘째 줄 기준 위치 */
+                text-indent: -18px; /* 첫 줄만 앞으로 당김 */
             }}
             
-            /* [핵심] Case 1 대응: 특정 클래스가 붙은 문단은 내어쓰기 해제 */
-            .concept-body p.no-indent, .answer-body p.no-indent {{
-                text-indent: 0;
-                padding-left: 0;
-            }}
-
             .image-wrapper {{ margin: 10px 0; text-align: left; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
+            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 10px; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
             
+            /* [수정] 문제 보기(정답) 영역: 내어쓰기 + 줄간격 축소 */
+            .answer-body {{ 
+                color: #4a5568; 
+                text-align: left;
+                padding-left: 18px; /* 둘째 줄 기준 위치 */
+                text-indent: -18px; /* 첫 줄만 앞으로 당김 */
+                line-height: 1.35;  /* 줄 간격을 기존 1.6에서 축소 (약 70% 느낌) */
+            }}
+            
+            /* 보기들이 p태그로 나뉠 경우를 대비한 여백 조정 */
+            .answer-body p, .concept-body p {{
+                margin: 3px 0;      /* 문단 간격을 좁게 설정 */
+                padding-left: 18px; /* 중복 적용 방지를 위한 리셋 또는 유지 */
+                text-indent: -18px; 
+            }}
+
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
+            tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                .header-box {{ position: static; display: {h_display} !important; }}
-                .main-container {{ column-count: {p_count} !important; }}
+                .header-box {{ position: static; display: {header_box_display} !important; }}
+                .section-header {{ background-color: #edf2f7 !important; color: #718096 !important; }}
+                .problem-col {{ background-color: #fcfcfc !important; }}
+                body {{ padding: 0; margin: 0; }}
+                .main-container {{ column-count: {print_column_count} !important; -webkit-column-count: {print_column_count} !important; }}
             }}
         </style>
     </head>
     <body>
         <div class="print-button-container">
             <button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button>
+            <span style="font-size: 0.8em; color: #666; margin-left: 10px;">* 설정된 필터에 맞춰 인쇄됩니다.</span>
         </div>
+        <br>
         <table class="master-table">
-            <thead style="display: table-header-group;">
-                <tr><td><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr>
+            <thead class="master-thead">
+                <tr>
+                    <td style="padding: 0; border: none;">
+                        <div class="header-box">
+                            <div class="concept-h">개념</div>
+                            <div class="problem-h">문제</div>
+                        </div>
+                    </td>
+                </tr>
             </thead>
             <tbody>
-                <tr><td><div class="main-container">{sections_html}</div></td></tr>
+                <tr>
+                    <td style="padding: 0; border: none;">
+                        <div class="main-container">
+                            {sections_html}
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </body>
     </html>
     """
-    components.html(full_html_page, height=max(2000, len(df) * 250), scrolling=True)
+
+    iframe_height = max(2000, len(df) * 250) 
+    components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
+    
