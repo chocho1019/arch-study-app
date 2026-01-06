@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -19,8 +18,6 @@ def load_data(url):
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
         
-        # [수정] 데이터 전처리: pk가 없고 fpk가 있는 경우 pk 자리에 fpk를 임시로 참조하게 함
-        # 이를 통해 문제만 있는 행들도 소카테고리 그룹에 포함됨
         if '개념빈출' in df.columns:
             df['개념빈출'] = pd.to_numeric(df['개념빈출'], errors='coerce').fillna(0).astype(int)
         
@@ -40,6 +37,41 @@ def format_drive_link(link):
     return link
 
 df_raw = load_data(csv_url)
+
+# [수정] 그룹 ID 생성 로직 강화 (필터링 전 원본 데이터에 적용)
+# 개념과 문제를 강력하게 묶어주기 위해 ffill(Forward Fill) 방식을 사용하여
+# 정보가 부족한 문제 행도 상위 개념의 ID를 물려받게 함
+if df_raw is not None:
+    def extract_group_id_robust(row):
+        # 1. PK 확인 (개념 행일 확률 높음)
+        pk_val = str(row.get('pk', '')).strip()
+        if pk_val and pk_val.lower() != 'nan':
+            parts = pk_val.split('-')
+            if len(parts) >= 3:
+                return "-".join(parts[:3]) # 예: A-01-01
+            return pk_val
+        
+        # 2. FPK 확인 (문제 행일 확률 높음)
+        fpk_val = str(row.get('fpk', '')).strip()
+        if fpk_val and fpk_val.lower() != 'nan':
+            parts = fpk_val.split('-')
+            if len(parts) >= 3:
+                return "-".join(parts[:3])
+            return fpk_val
+        
+        # 3. 둘 다 없으면 None 반환 (이후 ffill로 채움)
+        return None
+
+    # 전체 데이터에 대해 그룹 ID 1차 생성
+    df_raw['sub_cat_id'] = df_raw.apply(extract_group_id_robust, axis=1)
+    
+    # [핵심] fpk조차 누락된 고아 문제들을 위해, 바로 위 행(개념)의 ID를 물려받음 (Forward Fill)
+    # 이를 통해 붕 떠있는 문제들이 제자리(개념 옆)로 찾아감
+    df_raw['sub_cat_id'] = df_raw['sub_cat_id'].ffill()
+    
+    # 그래도 비어있는 값은 ETC 처리
+    df_raw['sub_cat_id'] = df_raw['sub_cat_id'].fillna("ETC")
+
 
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
@@ -74,19 +106,8 @@ if df_raw is not None:
 
     df = filtered_df
 
-    # [수정] 그룹화를 위한 ID 추출 로직 강화
-    # pk가 있으면 pk를 사용하고, 없으면 fpk를 사용하여 소카테고리 ID(예: A-01-01)를 추출합니다.
-    def get_group_id(row):
-        pk_val = str(row.get('pk', '')).strip()
-        fpk_val = str(row.get('fpk', '')).strip()
-        # pk가 우선, 없으면 fpk 참조
-        target_id = pk_val if pk_val and pk_val != "nan" else fpk_val
-        parts = target_id.split('-')
-        if len(parts) >= 3:
-            return "-".join(parts[:3])
-        return "ETC"
-
-    df['sub_cat_id'] = df.apply(get_group_id, axis=1)
+    # [삭제] 기존의 불완전했던 get_group_id 로직 삭제
+    # 이미 상단에서 'sub_cat_id'를 완벽하게 생성했으므로 바로 그룹핑에 들어감
     
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     sections_html = ""
