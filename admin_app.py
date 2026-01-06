@@ -17,13 +17,17 @@ def load_data(url):
     try:
         df = pd.read_csv(url)
         df.columns = [col.strip() for col in df.columns]
+        
+        # [수정] 데이터 전처리: pk가 없고 fpk가 있는 경우 pk 자리에 fpk를 임시로 참조하게 함
+        # 이를 통해 문제만 있는 행들도 소카테고리 그룹에 포함됨
         if '개념빈출' in df.columns:
             df['개념빈출'] = pd.to_numeric(df['개념빈출'], errors='coerce').fillna(0).astype(int)
+        
         return df.fillna("")
     except Exception:
         return None
 
-# 구글 드라이브 링크 변환 함수 (안정적인 thumbnail API)
+# 구글 드라이브 링크 변환 함수
 def format_drive_link(link):
     if not link or str(link).lower() == 'nan':
         return ""
@@ -68,28 +72,33 @@ if df_raw is not None:
         filtered_df = filtered_df.sort_values(by='개념빈출', ascending=False)
 
     df = filtered_df
-    pk_col = next((c for c in df.columns if c.lower() == 'pk'), None)
-    
-    if pk_col is None:
-        st.error(f"시트에서 'pk' 열을 찾을 수 없습니다.")
-        st.stop()
 
-    def extract_sub_cat_id(pk_val):
-        parts = str(pk_val).split('-')
+    # [수정] 그룹화를 위한 ID 추출 로직 강화
+    # pk가 있으면 pk를 사용하고, 없으면 fpk를 사용하여 소카테고리 ID(예: A-01-01)를 추출합니다.
+    def get_group_id(row):
+        pk_val = str(row.get('pk', '')).strip()
+        fpk_val = str(row.get('fpk', '')).strip()
+        # pk가 우선, 없으면 fpk 참조
+        target_id = pk_val if pk_val and pk_val != "nan" else fpk_val
+        parts = target_id.split('-')
         if len(parts) >= 3:
             return "-".join(parts[:3])
         return "ETC"
 
-    df['sub_cat_id'] = df[pk_col].apply(extract_sub_cat_id)
+    df['sub_cat_id'] = df.apply(get_group_id, axis=1)
     
     md_extensions = ['tables', 'fenced_code', 'nl2br']
     sections_html = ""
 
+    # 소카테고리별로 그룹화하여 순회
     for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
         group_concept_html = ""
         group_problem_html = ""
         
-        first_row = group.iloc[0]
+        # 해당 그룹의 제목(소카테고리 이름)을 가져오기 위해 pk가 있는 행을 우선 탐색
+        valid_rows = group[group['소카테고리'] != ""]
+        first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
+        
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
         sub_num_raw = str(first_row.get('숫소', '')).strip()
         try:
@@ -99,33 +108,27 @@ if df_raw is not None:
         category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
 
         for _, row in group.iterrows():
+            # 데이터 추출
             cat = str(row.get('구분', '')).strip()
             concept_raw = str(row.get('개념', '')).strip()
             concept_img_url = str(row.get('개념이미지', '')).strip()
             problem_raw = str(row.get('문제', '')).strip()
-            problem_img_url = str(row.get('문제이미지', '')).strip() # [추가] 문제이미지 로드
+            problem_img_url = str(row.get('문제이미지', '')).strip()
             answer_raw = str(row.get('정답', '')).strip()
             info = str(row.get('출제년도', '')).strip()
             freq_val = row.get('개념빈출', 0)
             
-            freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
-
-            raw_num_gu = row.get('숫구', '')
-            try:
-                num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
-            except:
-                num_gu_val = str(raw_num_gu).strip()
-            num_gu_display = f"{num_gu_val})" if num_gu_val else ""
-
-            raw_num_mun = row.get('숫문', '')
-            try:
-                num_mun_val = str(int(float(raw_num_mun))) if str(raw_num_mun).strip() and str(raw_num_mun) != "nan" else str(raw_num_mun).strip()
-            except:
-                num_mun_val = str(raw_num_mun).strip()
-            num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
-
-            # 1. 개념 영역 (구분 - 개념 - 개념이미지)
+            # 1. 개념 영역 렌더링 (내용이 있는 경우만)
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
+                freq_badge = f'<span style="color: #94a3b8; font-size: 0.8em; margin-left: 8px; font-weight: normal; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;">{freq_val}회</span>' if freq_val > 0 else ""
+                
+                raw_num_gu = row.get('숫구', '')
+                try:
+                    num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
+                except:
+                    num_gu_val = str(raw_num_gu).strip()
+                num_gu_display = f"{num_gu_val})" if num_gu_val else ""
+
                 c_body = markdown.markdown(concept_raw, extensions=md_extensions)
                 c_img_tag = ""
                 if concept_img_url and concept_img_url.lower() != "nan":
@@ -140,8 +143,15 @@ if df_raw is not None:
                 </div>
                 """
 
-            # 2. 문제 영역 (문제 - 문제이미지 - 정답)
-            if problem_raw:
+            # 2. 문제 영역 렌더링 (문제 내용이 있는 모든 행)
+            if problem_raw and problem_raw.lower() != "nan":
+                raw_num_mun = row.get('숫문', '')
+                try:
+                    num_mun_val = str(int(float(raw_num_mun))) if str(raw_num_mun).strip() and str(raw_num_mun) != "nan" else str(raw_num_mun).strip()
+                except:
+                    num_mun_val = str(raw_num_mun).strip()
+                num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
+
                 p_body = markdown.markdown(problem_raw, extensions=md_extensions)
                 a_body = markdown.markdown(answer_raw, extensions=md_extensions)
                 
@@ -160,6 +170,7 @@ if df_raw is not None:
                 </div>
                 """
 
+        # 소카테고리 컨테이너 생성
         sections_html += f"""
         <div class="section-container">
             <div class="section-header">{category_title}</div>
@@ -170,6 +181,7 @@ if df_raw is not None:
         </div>
         """
 
+    # 스타일 설정 및 HTML 조립 (기존과 동일)
     if only_concept:
         main_container_style = "column-count: 2; column-gap: 40px; column-rule: 1px solid #edf2f7; padding: 20px;"
         header_box_display = "none"
@@ -215,22 +227,17 @@ if df_raw is not None:
             .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid; text-align: left; }}
             .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 8px; display: flex; align-items: center; justify-content: flex-start; }}
             .concept-body {{ color: #4a5568; font-size: 0.98em; text-align: left; }}
-            
-            /* 이미지 공통 스타일 */
             .image-wrapper {{ margin: 10px 0; text-align: left; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
-            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 10px; }} /* 문제 이미지는 하단 여백 추가 */
-
+            .problem-img {{ border: 1px solid #e2e8f0; margin-bottom: 10px; }}
             .problem-block {{ font-size: 0.92em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 15px; text-align: left; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.85em; margin-bottom: 6px; text-align: left; }}
             .problem-body {{ margin-bottom: 8px; color: #2d3748; text-align: left; }}
             .answer-body {{ color: #4a5568; padding-left: 2px; text-align: left; }}
-            
             table {{ border-collapse: collapse; width: 100%; margin: 12px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 8px; font-size: 0.9em; text-align: left; }}
             th {{ background-color: #f7fafc; color: #4a5568; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; }}
             tr:last-child td {{ border-bottom: 2px solid #cbd5e0; }}
-
             @media print {{
                 .print-button-container {{ display: none !important; }}
                 .header-box {{ position: static; display: {header_box_display} !important; }}
@@ -272,7 +279,7 @@ if df_raw is not None:
     </html>
     """
 
-    iframe_height = max(2000, len(df) * 220) # 이미지 추가로 인한 높이 여유 확보
+    iframe_height = max(2000, len(df) * 250) 
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
