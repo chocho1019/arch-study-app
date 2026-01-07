@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -210,7 +209,9 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; text-align: left; background-color: white; }}
+            /* [수정] font-size: 1.2em 추가 - 전체 글씨 크기 1.2배 확대 */
+            body {{ font-family: 'Noto Sans KR', sans-serif; font-size: 1.2em; margin: 0; padding: 0; color: #333; line-height: 1.6; text-align: left; background-color: white; }}
+            
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
