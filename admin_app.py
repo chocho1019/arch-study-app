@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -34,17 +33,17 @@ def format_drive_link(link):
             return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return link
 
-# [수정] 글머리 기호 감지 및 클래스 부여 (들여쓰기 정렬용)
+# [수정] 글머리 기호 감지 및 클래스 부여 (공백 허용 및 정규식 보강)
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # 하이픈(-), 원문자, 숫자+점/괄호, 별표(*) 등을 감지하여 클래스 부여
-    pattern = r'<p>([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
+    # <p> 태그 바로 뒤에 공백이 있을 수 있으므로 \s* 추가 및 기호 범위 확정
+    pattern = r'<p>\s*([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
     return re.sub(pattern, r'<p class="bullet-line">\1', html_text)
 
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan': return ""
-    # [1번 요구사항] 하이픈이 리스트 태그로 바뀌지 않도록 이스케이프 처리하여 문자 그대로 유지
+    # 하이픈이 리스트 태그로 바뀌지 않도록 이스케이프 처리하여 문자 그대로 유지
     text = re.sub(r'^(\s*)-\s', r'\1\- ', text, flags=re.MULTILINE)
     
     lines = text.splitlines()
@@ -142,7 +141,6 @@ if df_raw is not None:
             freq_val = row.get('개념빈출', 0)
             
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
-                # [2번 요구사항] 빈출 배지를 오른쪽 끝으로 보내기 위한 span
                 freq_badge = f'<span class="freq-badge">{freq_val}회</span>' if freq_val > 0 else "<span></span>"
                 raw_num_gu = row.get('숫구', '')
                 try: num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
@@ -150,12 +148,10 @@ if df_raw is not None:
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
                 
                 c_body = markdown.markdown(preprocess_markdown(concept_raw), extensions=md_extensions)
-                # [4번 요구사항] 마크다운 본문에도 들여쓰기 적용
                 c_body = apply_custom_indent(c_body)
                 
                 c_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(concept_img_url)}" class="content-img" loading="lazy"></div>' if concept_img_url and concept_img_url.lower() != "nan" else ""
                 
-                # [2번 요구사항 반영] category-title 구조 변경 (flex-space-between)
                 group_concept_html += f"""
                 <div class="content-block">
                     <div class="category-title">
@@ -233,7 +229,6 @@ if df_raw is not None:
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid; break-inside: avoid; }}
             
-            /* [2번 요구사항 반영] 빈출 뱃지 우측 정렬 */
             .category-title {{ 
                 font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 5px; 
                 display: flex; align-items: center; justify-content: space-between; 
@@ -244,16 +239,18 @@ if df_raw is not None:
                 white-space: nowrap;
             }}
             
-            .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
+            /* [수정] 본문 텍스트 크기를 1.0em으로 상향하여 제목과 통일 */
+            .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 1.0em; }}
             .concept-body p, .answer-body p, .problem-body p {{ 
                 margin: 4px 0; 
                 line-height: 1.6;
             }}
 
-            /* [3, 4번 요구사항] 들여쓰기 정렬 최적화 */
+            /* [수정] 들여쓰기 최적화: 너비를 1.5em으로 늘려 원문자(①)와 공백이 충분히 들어가도록 함 */
             .bullet-line {{
-                padding-left: 1.2em !important;   /* 기호 너비 + 공백만큼 왼쪽 여백 확보 */
-                text-indent: -1.2em !important;  /* 첫 번째 줄만 왼쪽으로 당겨서 기호 배치 */
+                padding-left: 1.5em !important;   
+                text-indent: -1.5em !important;  
+                display: block; /* 줄바꿈 시에도 정렬 유지 보장 */
             }}
 
             .image-wrapper {{ margin: 8px 0; }}
