@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -33,17 +34,17 @@ def format_drive_link(link):
             return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return link
 
-# [핵심 수정] 글머리 기호 감지 및 클래스 부여 (마크다운 변환 후의 태그도 처리 가능하도록 정규식 강화)
+# [수정] 글머리 기호 감지 및 클래스 부여 (들여쓰기 정렬용)
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # <p> 태그로 시작하고 그 뒤에 하이픈, 숫자, 특수기호가 오는 경우 'bullet-line' 클래스 부여
+    # 하이픈(-), 원문자, 숫자+점/괄호, 별표(*) 등을 감지하여 클래스 부여
     pattern = r'<p>([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
     return re.sub(pattern, r'<p class="bullet-line">\1', html_text)
 
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan': return ""
-    # 하이픈이 <ul><li>로 자동 변환되는 것을 막기 위해 이스케이프 처리 (\-)
+    # [1번 요구사항] 하이픈이 리스트 태그로 바뀌지 않도록 이스케이프 처리하여 문자 그대로 유지
     text = re.sub(r'^(\s*)-\s', r'\1\- ', text, flags=re.MULTILINE)
     
     lines = text.splitlines()
@@ -141,6 +142,7 @@ if df_raw is not None:
             freq_val = row.get('개념빈출', 0)
             
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
+                # [2번 요구사항] 빈출 배지를 오른쪽 끝으로 보내기 위한 span
                 freq_badge = f'<span class="freq-badge">{freq_val}회</span>' if freq_val > 0 else "<span></span>"
                 raw_num_gu = row.get('숫구', '')
                 try: num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
@@ -148,10 +150,12 @@ if df_raw is not None:
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
                 
                 c_body = markdown.markdown(preprocess_markdown(concept_raw), extensions=md_extensions)
-                c_body = apply_custom_indent(c_body) # 개념 본문 정렬 적용
+                # [4번 요구사항] 마크다운 본문에도 들여쓰기 적용
+                c_body = apply_custom_indent(c_body)
                 
                 c_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(concept_img_url)}" class="content-img" loading="lazy"></div>' if concept_img_url and concept_img_url.lower() != "nan" else ""
                 
+                # [2번 요구사항 반영] category-title 구조 변경 (flex-space-between)
                 group_concept_html += f"""
                 <div class="content-block">
                     <div class="category-title">
@@ -169,17 +173,15 @@ if df_raw is not None:
                 num_mun_display = f"{num_mun_val}. " if num_mun_val else ""
                 
                 p_body = markdown.markdown(problem_raw.replace('\n', '  \n'), extensions=md_extensions)
-                p_body = apply_custom_indent(p_body) # 문제 본문 정렬 적용
+                p_body = apply_custom_indent(p_body)
                 
                 a_body = markdown.markdown(preprocess_markdown(answer_raw), extensions=md_extensions)
-                a_body = apply_custom_indent(a_body) # 정답 본문 정렬 적용
+                a_body = apply_custom_indent(a_body)
                 
                 p_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(problem_img_url)}" class="content-img problem-img" loading="lazy"></div>' if problem_img_url and problem_img_url.lower() != "nan" else ""
                 info_tag = f'<div class="info-tag">[{info} 출제년도]</div>' if info else ""
                 
-                # 문제의 경우 <p> 태그를 제거하여 bold 처리와 호환성을 높이되, 클래스가 있는 경우 스타일 유지를 위해 정규식으로 태그만 제거
-                p_body_cleaned = re.sub(r'</?p[^>]*>', '', p_body) 
-                
+                p_body_cleaned = p_body.replace("<p>", "").replace("</p>", "")
                 group_problem_html += f'<div class="content-block problem-block">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body_cleaned}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
         sections_html += f"""
@@ -231,6 +233,7 @@ if df_raw is not None:
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid; break-inside: avoid; }}
             
+            /* [2번 요구사항 반영] 빈출 뱃지 우측 정렬 */
             .category-title {{ 
                 font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 5px; 
                 display: flex; align-items: center; justify-content: space-between; 
@@ -241,23 +244,21 @@ if df_raw is not None:
                 white-space: nowrap;
             }}
             
-            /* [핵심 수정] 마크다운 글씨 크기를 다른 일반 텍스트(category-title 등)와 동일하게 1.0em으로 설정 */
-            .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 1.0em; }}
+            .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
             .concept-body p, .answer-body p, .problem-body p {{ 
                 margin: 4px 0; 
                 line-height: 1.6;
             }}
 
-            /* [핵심 수정] 하이픈 및 기호가 있는 모든 본문 라인에 대해 내어쓰기 적용 */
+            /* [3, 4번 요구사항] 들여쓰기 정렬 최적화 */
             .bullet-line {{
-                padding-left: 1.2em !important;   /* 기호 너비만큼 들여씀 */
-                text-indent: -1.2em !important;  /* 첫 줄만 앞으로 당겨서 기호 배치 */
-                display: block;
+                padding-left: 1.2em !important;   /* 기호 너비 + 공백만큼 왼쪽 여백 확보 */
+                text-indent: -1.2em !important;  /* 첫 번째 줄만 왼쪽으로 당겨서 기호 배치 */
             }}
 
             .image-wrapper {{ margin: 8px 0; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
-            .problem-block {{ font-size: 0.95em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 10px; }}
+            .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 10px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 4px; }}
             
             table {{ border-collapse: collapse; width: 100%; margin: 10px 0; border-top: 2px solid #cbd5e0; }}
