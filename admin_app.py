@@ -231,7 +231,7 @@ if df_raw is not None:
             
             /* [추가 수정] '*' 기호를 사용한 리스트(ul/li)의 들여쓰기를 절반으로 줄임 */
             .concept-body ul, .answer-body ul, .problem-body ul {{
-                padding-left: 1.2em !important;
+                padding-left: 2.4em !important;
                 margin: 4px 0 !important;
             }}
             .concept-body li, .answer-body li, .problem-body li {{
