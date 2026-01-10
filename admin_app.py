@@ -106,9 +106,13 @@ if df_raw is not None:
     if sort_option:
         filtered_df = filtered_df.sort_values(by='개념빈출', ascending=False)
 
+  # ... (앞부분 동일) ...
+
     df = filtered_df
     md_extensions = ['tables', 'fenced_code', 'nl2br'] 
-    sections_html = ""
+    
+    # [수정] sections_html을 리스트로 변경하여 행(row)별로 관리
+    sections_rows_html = ""
     last_main_cat = None
 
     for sub_id, group in df.groupby('sub_cat_id', sort=not sort_option):
@@ -118,9 +122,9 @@ if df_raw is not None:
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         current_main_cat = str(first_row.get('대카테고리', '')).strip()
 
-        main_header_html = ""
+        # 대카테고리 헤더 생성
         if current_main_cat and current_main_cat != last_main_cat:
-            main_header_html = f'<div class="main-section-header">{current_main_cat}</div>'
+            sections_rows_html += f'<tr><td><div class="main-section-header">{current_main_cat}</div></td></tr>'
             last_main_cat = current_main_cat
 
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
@@ -131,6 +135,7 @@ if df_raw is not None:
             sub_num = sub_num_raw
         category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
 
+        # 내부 콘텐트 생성 로직 (기존과 동일)
         for _, row in group.iterrows():
             cat = str(row.get('구분', '')).strip()
             concept_raw = str(row.get('개념', '')).strip()
@@ -142,7 +147,6 @@ if df_raw is not None:
             freq_val = row.get('개념빈출', 0)
             
             if cat or concept_raw or (concept_img_url and concept_img_url.lower() != "nan"):
-                # [2번 요구사항] 빈출 배지를 오른쪽 끝으로 보내기 위한 span
                 freq_badge = f'<span class="freq-badge">{freq_val}회</span>' if freq_val > 0 else "<span></span>"
                 raw_num_gu = row.get('숫구', '')
                 try: num_gu_val = str(int(float(raw_num_gu))) if str(raw_num_gu).strip() and str(raw_num_gu) != "nan" else str(raw_num_gu).strip()
@@ -150,12 +154,9 @@ if df_raw is not None:
                 num_gu_display = f"{num_gu_val})" if num_gu_val else ""
                 
                 c_body = markdown.markdown(preprocess_markdown(concept_raw), extensions=md_extensions)
-                # [4번 요구사항] 마크다운 본문에도 들여쓰기 적용
                 c_body = apply_custom_indent(c_body)
-                
                 c_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(concept_img_url)}" class="content-img" loading="lazy"></div>' if concept_img_url and concept_img_url.lower() != "nan" else ""
                 
-                # [2번 요구사항 반영] category-title 구조 변경 (flex-space-between)
                 group_concept_html += f"""
                 <div class="content-block">
                     <div class="category-title">
@@ -174,25 +175,24 @@ if df_raw is not None:
                 
                 p_body = markdown.markdown(problem_raw.replace('\n', '  \n'), extensions=md_extensions)
                 p_body = apply_custom_indent(p_body)
-                
                 a_body = markdown.markdown(preprocess_markdown(answer_raw), extensions=md_extensions)
                 a_body = apply_custom_indent(a_body)
-                
                 p_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(problem_img_url)}" class="content-img problem-img" loading="lazy"></div>' if problem_img_url and problem_img_url.lower() != "nan" else ""
                 info_tag = f'<div class="info-tag">[{info} 출제년도]</div>' if info else ""
-                
                 p_body_cleaned = p_body.replace("<p>", "").replace("</p>", "")
                 group_problem_html += f'<div class="content-block problem-block">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body_cleaned}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
-        sections_html += f"""
-        {main_header_html}
-        <div class="section-container">
-            <div class="section-header">{category_title}</div>
-            <div class="sub-section">
-                <div class="column concept-col">{group_concept_html}</div>
-                {f'<div class="column problem-col">{group_problem_html}</div>' if not only_concept else ''}
+        # [수정] 각 섹션을 별도의 테이블 행(tr)으로 분리하여 추가
+        sections_rows_html += f"""
+        <tr><td>
+            <div class="section-container">
+                <div class="section-header">{category_title}</div>
+                <div class="sub-section">
+                    <div class="column concept-col">{group_concept_html}</div>
+                    {f'<div class="column problem-col">{group_problem_html}</div>' if not only_concept else ''}
+                </div>
             </div>
-        </div>
+        </td></tr>
         """
 
     if only_concept:
@@ -202,7 +202,8 @@ if df_raw is not None:
     else:
         m_style = ""
         h_box_d, p_c_count, c_h_w, p_h_d, c_c_w, c_c_b = "flex", "1", "60%", "block", "60%", "1px solid #edf2f7"
-        s_break = "page-break-inside: avoid;"
+        # [수정 핵심] 섹션 컨테이너 내부에서의 페이지 분할은 허용하되, 컨텐츠 블록은 유지
+        s_break = "page-break-inside: auto;" 
 
     full_html_page = f"""
     <!DOCTYPE html>
@@ -217,6 +218,8 @@ if df_raw is not None:
             .header-box {{ display: {h_box_d}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; }}
             .header-box .concept-h {{ width: {c_h_w}; padding: 4px 12px; box-sizing: border-box; border-right: {c_c_b}; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_d}; }}
+            
+            /* [수정] main-container의 범위를 개별 tr 내부로 한정 */
             .main-container {{ text-align: left; {m_style} width: 100%; box-sizing: border-box; }}
             
             .main-section-header {{
@@ -231,9 +234,10 @@ if df_raw is not None:
             .column {{ display: flex; flex-direction: column; padding: 5px 10px; box-sizing: border-box; }}
             .concept-col {{ width: {c_c_w}; border-right: {c_c_b}; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
-            .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid; break-inside: avoid; }}
             
-            /* [2번 요구사항 반영] 빈출 뱃지 우측 정렬 */
+            /* [수정] 개별 문제/개념 블록이 중간에 잘리지 않도록 강제 설정 */
+            .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid !important; break-inside: avoid !important; }}
+            
             .category-title {{ 
                 font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 5px; 
                 display: flex; align-items: center; justify-content: space-between; 
@@ -245,30 +249,21 @@ if df_raw is not None:
             }}
             
             .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
-            .concept-body p, .answer-body p, .problem-body p {{ 
-                margin: 4px 0; 
-                line-height: 1.6;
-            }}
+            .concept-body p, .answer-body p, .problem-body p {{ margin: 4px 0; line-height: 1.6; }}
 
-            /* [3, 4번 요구사항] 들여쓰기 정렬 최적화 */
-            .bullet-line {{
-                padding-left: 1.2em !important;   /* 기호 너비 + 공백만큼 왼쪽 여백 확보 */
-                text-indent: -1.2em !important;  /* 첫 번째 줄만 왼쪽으로 당겨서 기호 배치 */
-            }}
-
+            .bullet-line {{ padding-left: 1.2em !important; text-indent: -1.2em !important; }}
             .image-wrapper {{ margin: 8px 0; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
             .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 10px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 4px; }}
             
-            table {{ border-collapse: collapse; width: 100%; margin: 10px 0; border-top: 2px solid #cbd5e0; }}
+            table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 10px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 6px; font-size: 0.85em; text-align: left; }}
             th {{ background-color: #f7fafc; font-weight: bold; }}
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                .main-container {{ column-count: {p_c_count} !important; -webkit-column-count: {p_c_count} !important; }}
-                .section-container {{ break-inside: avoid-column !important; -webkit-column-break-inside: avoid !important; }}
+                /* 단일 컨테이너가 아닌 행별 구조이므로 column-count 설정 방식 조정 필요시 여기서 수행 */
             }}
         </style>
     </head>
@@ -279,7 +274,7 @@ if df_raw is not None:
                 <tr><td><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr>
             </thead>
             <tbody>
-                <tr><td><div class="main-container">{sections_html}</div></td></tr>
+                {sections_rows_html}
             </tbody>
         </table>
     </body>
@@ -287,5 +282,3 @@ if df_raw is not None:
     """
     iframe_height = max(2000, len(df) * 200) 
     components.html(full_html_page, height=iframe_height, scrolling=True)
-else:
-    st.error("데이터를 불러오지 못했습니다.")
