@@ -220,7 +220,7 @@ if df_raw is not None:
                 display: inline-block !important;
                 flex-shrink: 0 !important;
                 /* [수정] 간격을 0.7em 체감 수준으로 조정 (기존 1.8em -> 1.2em) */
-                width: 1.2em !important; 
+                width: 1.4em !important; 
                 text-align: left !important;
                 font-weight: normal;
             }}
