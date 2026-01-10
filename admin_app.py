@@ -36,17 +36,18 @@ def format_drive_link(link):
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # [수정] &nbsp;가 포함된 패턴까지 포함하여 bullet-line 클래스를 부여하도록 확장
-    # 동그라미 숫자 기호들과 '-' 기호 모두를 감지합니다.
-    pattern = r'<p>((?:&nbsp;)*[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
+    # [수정] 불렛 기호들(-, ①~⑮, ❶~⓯, *, •, 숫자형태)을 감지합니다.
+    # 특히 '-'는 preprocess_markdown에서 <span class="bullet-marker">-</span> 형태로 변환되어 전달됩니다.
+    pattern = r'<p>(<span class="bullet-marker">[-\u2022]</span>|[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
     return re.sub(pattern, r'<p class="bullet-line">\1', html_text)
 
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan': return ""
     
-    # [수정] '-' 기호가 동그라미 숫자와 수직 정렬을 이루도록 공백(&nbsp;) 삽입 로직 최적화
-    # - 기호 자체를 들여쓰기 공간 안으로 밀어 넣어 줄바꿈 시 글자 시작 위치를 맞춥니다.
-    text = re.sub(r'^(\s*)-\s', r'\1&nbsp;\-&nbsp;', text, flags=re.MULTILINE)
+    # [수정 핵심] '-' 기호를 고정 폭을 가진 span 태그로 감싸서 
+    # 동그라미 숫자들과 물리적인 너비를 동일하게 맞춥니다.
+    # 마크다운 리스트 문법과의 충돌을 피하기 위해 치환 후 간격을 조정합니다.
+    text = re.sub(r'^(\s*)-\s', r'\1<span class="bullet-marker">-</span> ', text, flags=re.MULTILINE)
     
     lines = text.splitlines()
     processed_lines = []
