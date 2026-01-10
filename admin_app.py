@@ -115,8 +115,9 @@ if df_raw is not None:
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         current_main_cat = str(first_row.get('대카테고리', '')).strip()
 
+        # 대카테고리 헤더 (인쇄 시 다음 행과 분리 방지 설정)
         if current_main_cat and current_main_cat != last_main_cat:
-            sections_rows_html += f'<tr><td colspan="2"><div class="main-section-header">{current_main_cat}</div></td></tr>'
+            sections_rows_html += f'<tr style="page-break-after: avoid !important;"><td colspan="2"><div class="main-section-header">{current_main_cat}</div></td></tr>'
             last_main_cat = current_main_cat
 
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
@@ -126,6 +127,10 @@ if df_raw is not None:
         except:
             sub_num = sub_num_raw
         category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
+
+        # 첫 번째 블록 감지를 위한 플래그
+        first_c = True
+        first_p = True
 
         for _, row in group.iterrows():
             cat = str(row.get('구분', '')).strip()
@@ -148,8 +153,12 @@ if df_raw is not None:
                 c_body = apply_custom_indent(c_body)
                 c_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(concept_img_url)}" class="content-img" loading="lazy"></div>' if concept_img_url and concept_img_url.lower() != "nan" else ""
                 
+                # 첫 번째 개념 블록에 'first-block' 클래스 부여
+                c_class = "content-block" + (" first-block" if first_c else "")
+                first_c = False
+
                 group_concept_html += f"""
-                <div class="content-block">
+                <div class="{c_class}">
                     <div class="category-title">
                         <span>{num_gu_display} {cat}</span>
                         {freq_badge}
@@ -171,7 +180,12 @@ if df_raw is not None:
                 p_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(problem_img_url)}" class="content-img problem-img" loading="lazy"></div>' if problem_img_url and problem_img_url.lower() != "nan" else ""
                 info_tag = f'<div class="info-tag">[{info} 출제년도]</div>' if info else ""
                 p_body_cleaned = p_body.replace("<p>", "").replace("</p>", "")
-                group_problem_html += f'<div class="content-block problem-block">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body_cleaned}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
+                
+                # 첫 번째 문제 블록에 'first-block' 클래스 부여
+                p_class = "content-block problem-block" + (" first-block" if first_p else "")
+                first_p = False
+
+                group_problem_html += f'<div class="{p_class}">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body_cleaned}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
         sections_rows_html += f"""
         <tr><td colspan="2">
@@ -205,37 +219,39 @@ if df_raw is not None:
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
             
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
-            /* 테이블과 행이 인쇄 시 잘릴 수 있도록 설정 */
             .master-table, tr, td {{ page-break-inside: auto !important; }}
 
             .header-box {{ display: {h_box_d}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; }}
             .header-box .concept-h {{ width: {c_h_w}; padding: 4px 12px; box-sizing: border-box; border-right: {c_c_b}; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_d}; }}
             
-            .main-container {{ text-align: left; {m_style} width: 100%; box-sizing: border-box; }}
-            
             .main-section-header {{
                 width: 100%; background-color: #dbe4ef; padding: 8px 15px; font-weight: bold; font-size: 1.1em; color: #2d3748;
                 border-left: 5px solid #4a5568; box-sizing: border-box; margin: 10px 0 5px 0;
-                page-break-after: avoid; -webkit-print-color-adjust: exact;
+                page-break-after: avoid !important; break-after: avoid-page !important; -webkit-print-color-adjust: exact;
             }}
 
             .section-container {{ margin-bottom: 15px; text-align: left; {s_break} box-sizing: border-box; }}
-            /* [수정 핵심] 소제목 뒤에 바로 내용이 오도록 강제 */
+            
             .section-header {{ 
                 width: 100%; background-color: #edf2f7; padding: 5px 15px; font-weight: bold; font-size: 0.95em; color: #718096; 
                 border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-bottom: 4px; 
-                page-break-after: avoid !important; /* 소제목 바로 뒤에서 페이지가 안 잘리게 함 */
+                page-break-after: avoid !important; break-after: avoid-page !important;
                 -webkit-print-color-adjust: exact; 
             }}
             
-            .sub-section {{ display: flex; width: 100%; align-items: stretch; }}
+            .sub-section {{ 
+                display: flex; width: 100%; align-items: stretch; 
+                page-break-before: avoid !important; break-before: avoid-page !important;
+            }}
             .column {{ display: flex; flex-direction: column; padding: 2px 10px; box-sizing: border-box; }}
             .concept-col {{ width: {c_c_w}; border-right: {c_c_b}; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             
-            /* 개별 블록 간격 축소 및 잘림 방지 */
             .content-block {{ width: 100%; margin-bottom: 10px; page-break-inside: avoid !important; break-inside: avoid !important; }}
+            
+            /* [수정 핵심] 첫 번째 블록이 헤더와 떨어지지 않게 설정 */
+            .first-block {{ page-break-before: avoid !important; break-before: avoid-page !important; }}
             
             .category-title {{ 
                 font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 3px; 
@@ -248,7 +264,7 @@ if df_raw is not None:
             }}
             
             .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
-            .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; }}
+            .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; orphans: 3; widows: 3; }}
 
             .bullet-line {{ padding-left: 1.2em !important; text-indent: -1.2em !important; }}
             .image-wrapper {{ margin: 5px 0; }}
@@ -256,7 +272,6 @@ if df_raw is not None:
             .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
-            /* 테이블 내 마크다운 테이블 스타일 최적화 */
             table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 8px 0; border-top: 2px solid #cbd5e0; }}
             th, td {{ border-bottom: 1px solid #e2e8f0; padding: 3px 6px; font-size: 0.85em; text-align: left; }}
             th {{ background-color: #f7fafc; font-weight: bold; }}
@@ -265,7 +280,6 @@ if df_raw is not None:
                 .print-button-container {{ display: none !important; }}
                 body {{ background: none; }}
                 .master-table {{ table-layout: fixed; }}
-                /* 빈 페이지 방지를 위한 행 설정 */
                 tr {{ page-break-inside: auto !important; }}
                 td {{ page-break-inside: auto !important; }}
             }}
