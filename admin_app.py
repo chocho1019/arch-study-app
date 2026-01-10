@@ -36,9 +36,15 @@ def format_drive_link(link):
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # [수정] span으로 감싸진 불렛과 일반 동그라미 숫자를 모두 감지하여 들여쓰기 클래스 적용
-    pattern = r'<p>(<span class="bullet-marker">[-\u2022]</span>|[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
-    return re.sub(pattern, r'<p class="bullet-line">\1', html_text)
+    
+    # [수정] 모든 불렛 기호와 번호를 감지하여 flex 구조로 변환
+    # 기호 부분(span.bullet-marker)과 나머지 텍스트를 분리하는 정규식
+    pattern = r'<p>(<span class="bullet-marker">.*?</span>|[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿\*\u2022]|(?:\d+[\)\.]))\s*(.*?)<\/p>'
+    
+    # <div class="bullet-line"> 구조로 변경하여 flex 적용 가능하게 함
+    replacement = r'<div class="bullet-line"><span class="bullet-marker">\1</span><span class="bullet-content">\2</span></div>'
+    
+    return re.sub(pattern, replacement, html_text, flags=re.DOTALL)
 
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan': return ""
@@ -219,24 +225,33 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-    /* ... 기타 설정들 ... */
+    /* [수정] 불렛 라인 전체 구조 */
+.bullet-line {
+    display: flex !important;
+    align-items: flex-start !important; /* 상단 정렬 */
+    margin: 4px 0 !important;
+    line-height: 1.5;
+}
 
-            .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; orphans: 3; widows: 3; }}
+/* [수정] 불렛 기호 및 숫자 영역 */
+.bullet-marker {
+    display: inline-block !important;
+    flex-shrink: 0 !important;   /* 너비 고정 */
+    width: 1.2em !important;     /* 기호가 차지할 고정 너비 */
+    text-align: left !important;
+    font-weight: normal;
+}
 
-            /* 바로 이 부분입니다! */
-            .bullet-marker {{ 
-                display: inline-block; 
-                width: 0.1em; 
-                margin-left: 0.1em; 
-                text-align: left;
-            }}
-            .bullet-line {{ 
-                padding-left: 1.0em !important; 
-                text-indent: -1.0em !important; 
-            }}
+/* [수정] 텍스트 내용 영역 (넘치는 글자가 정렬되는 곳) */
+.bullet-content {
+    flex: 1 !important;
+    word-break: keep-all;        /* 한글 단어 단위 줄바꿈 */
+}
 
-            .image-wrapper {{ margin: 5px 0; }}
-            /* ... 나머지 설정들 ... */
+/* 기존 concept-body 내부의 p 태그 여백 조정 (bullet-line과 중복 방지) */
+.concept-body p, .answer-body p, .problem-body p { 
+    margin: 2px 0; 
+}
                 
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.4; text-align: left; background-color: white; }}
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
