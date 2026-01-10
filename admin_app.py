@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -34,17 +33,14 @@ def format_drive_link(link):
             return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return link
 
-# [수정] 글머리 기호 감지 및 클래스 부여 (들여쓰기 정렬용)
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # 하이픈(-), 원문자, 숫자+점/괄호, 별표(*) 등을 감지하여 클래스 부여
     pattern = r'<p>([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
     return re.sub(pattern, r'<p class="bullet-line">\1', html_text)
 
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan': return ""
-    # [1번 요구사항] 하이픈이 리스트 태그로 바뀌지 않도록 이스케이프 처리하여 문자 그대로 유지
     text = re.sub(r'^(\s*)-\s', r'\1\- ', text, flags=re.MULTILINE)
     
     lines = text.splitlines()
@@ -106,12 +102,9 @@ if df_raw is not None:
     if sort_option:
         filtered_df = filtered_df.sort_values(by='개념빈출', ascending=False)
 
-  # ... (앞부분 동일) ...
-
     df = filtered_df
     md_extensions = ['tables', 'fenced_code', 'nl2br'] 
     
-    # [수정] sections_html을 리스트로 변경하여 행(row)별로 관리
     sections_rows_html = ""
     last_main_cat = None
 
@@ -122,9 +115,8 @@ if df_raw is not None:
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         current_main_cat = str(first_row.get('대카테고리', '')).strip()
 
-        # 대카테고리 헤더 생성
         if current_main_cat and current_main_cat != last_main_cat:
-            sections_rows_html += f'<tr><td><div class="main-section-header">{current_main_cat}</div></td></tr>'
+            sections_rows_html += f'<tr><td colspan="2"><div class="main-section-header">{current_main_cat}</div></td></tr>'
             last_main_cat = current_main_cat
 
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
@@ -135,7 +127,6 @@ if df_raw is not None:
             sub_num = sub_num_raw
         category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
 
-        # 내부 콘텐트 생성 로직 (기존과 동일)
         for _, row in group.iterrows():
             cat = str(row.get('구분', '')).strip()
             concept_raw = str(row.get('개념', '')).strip()
@@ -182,9 +173,8 @@ if df_raw is not None:
                 p_body_cleaned = p_body.replace("<p>", "").replace("</p>", "")
                 group_problem_html += f'<div class="content-block problem-block">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body_cleaned}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
-        # [수정] 각 섹션을 별도의 테이블 행(tr)으로 분리하여 추가
         sections_rows_html += f"""
-        <tr><td>
+        <tr><td colspan="2">
             <div class="section-container">
                 <div class="section-header">{category_title}</div>
                 <div class="sub-section">
@@ -202,7 +192,6 @@ if df_raw is not None:
     else:
         m_style = ""
         h_box_d, p_c_count, c_h_w, p_h_d, c_c_w, c_c_b = "flex", "1", "60%", "block", "60%", "1px solid #edf2f7"
-        # [수정 핵심] 섹션 컨테이너 내부에서의 페이지 분할은 허용하되, 컨텐츠 블록은 유지
         s_break = "page-break-inside: auto;" 
 
     full_html_page = f"""
@@ -211,35 +200,45 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.6; text-align: left; background-color: white; }}
+            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.4; text-align: left; background-color: white; }}
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
+            
             .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
+            /* 테이블과 행이 인쇄 시 잘릴 수 있도록 설정 */
+            .master-table, tr, td {{ page-break-inside: auto !important; }}
+
             .header-box {{ display: {h_box_d}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; }}
             .header-box .concept-h {{ width: {c_h_w}; padding: 4px 12px; box-sizing: border-box; border-right: {c_c_b}; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_d}; }}
             
-            /* [수정] main-container의 범위를 개별 tr 내부로 한정 */
             .main-container {{ text-align: left; {m_style} width: 100%; box-sizing: border-box; }}
             
             .main-section-header {{
-                width: 100%; background-color: #dbe4ef; padding: 10px 15px; font-weight: bold; font-size: 1.1em; color: #2d3748;
-                border-left: 5px solid #4a5568; box-sizing: border-box; margin: 15px 0 10px 0;
-                break-inside: avoid-column; page-break-after: avoid; -webkit-print-color-adjust: exact;
+                width: 100%; background-color: #dbe4ef; padding: 8px 15px; font-weight: bold; font-size: 1.1em; color: #2d3748;
+                border-left: 5px solid #4a5568; box-sizing: border-box; margin: 10px 0 5px 0;
+                page-break-after: avoid; -webkit-print-color-adjust: exact;
             }}
 
-            .section-container {{ margin-bottom: 20px; text-align: left; {s_break} box-sizing: border-box; }}
-            .section-header {{ width: 100%; background-color: #edf2f7; padding: 6px 15px; font-weight: bold; font-size: 0.95em; color: #718096; border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-bottom: 8px; -webkit-print-color-adjust: exact; }}
-            .sub-section {{ display: flex; width: 100%; }}
-            .column {{ display: flex; flex-direction: column; padding: 5px 10px; box-sizing: border-box; }}
+            .section-container {{ margin-bottom: 15px; text-align: left; {s_break} box-sizing: border-box; }}
+            /* [수정 핵심] 소제목 뒤에 바로 내용이 오도록 강제 */
+            .section-header {{ 
+                width: 100%; background-color: #edf2f7; padding: 5px 15px; font-weight: bold; font-size: 0.95em; color: #718096; 
+                border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-bottom: 4px; 
+                page-break-after: avoid !important; /* 소제목 바로 뒤에서 페이지가 안 잘리게 함 */
+                -webkit-print-color-adjust: exact; 
+            }}
+            
+            .sub-section {{ display: flex; width: 100%; align-items: stretch; }}
+            .column {{ display: flex; flex-direction: column; padding: 2px 10px; box-sizing: border-box; }}
             .concept-col {{ width: {c_c_w}; border-right: {c_c_b}; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             
-            /* [수정] 개별 문제/개념 블록이 중간에 잘리지 않도록 강제 설정 */
-            .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid !important; break-inside: avoid !important; }}
+            /* 개별 블록 간격 축소 및 잘림 방지 */
+            .content-block {{ width: 100%; margin-bottom: 10px; page-break-inside: avoid !important; break-inside: avoid !important; }}
             
             .category-title {{ 
-                font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 5px; 
+                font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 3px; 
                 display: flex; align-items: center; justify-content: space-between; 
             }}
             .freq-badge {{
@@ -249,21 +248,26 @@ if df_raw is not None:
             }}
             
             .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
-            .concept-body p, .answer-body p, .problem-body p {{ margin: 4px 0; line-height: 1.6; }}
+            .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; }}
 
             .bullet-line {{ padding-left: 1.2em !important; text-indent: -1.2em !important; }}
-            .image-wrapper {{ margin: 8px 0; }}
+            .image-wrapper {{ margin: 5px 0; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
-            .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 10px; }}
-            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 4px; }}
+            .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
+            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
-            table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 10px 0; border-top: 2px solid #cbd5e0; }}
-            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 4px 6px; font-size: 0.85em; text-align: left; }}
+            /* 테이블 내 마크다운 테이블 스타일 최적화 */
+            table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 8px 0; border-top: 2px solid #cbd5e0; }}
+            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 3px 6px; font-size: 0.85em; text-align: left; }}
             th {{ background-color: #f7fafc; font-weight: bold; }}
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                /* 단일 컨테이너가 아닌 행별 구조이므로 column-count 설정 방식 조정 필요시 여기서 수행 */
+                body {{ background: none; }}
+                .master-table {{ table-layout: fixed; }}
+                /* 빈 페이지 방지를 위한 행 설정 */
+                tr {{ page-break-inside: auto !important; }}
+                td {{ page-break-inside: auto !important; }}
             }}
         </style>
     </head>
@@ -271,7 +275,7 @@ if df_raw is not None:
         <div class="print-button-container"><button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button></div>
         <table class="master-table">
             <thead style="display: table-header-group;">
-                <tr><td><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr>
+                <tr><td colspan="2"><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr>
             </thead>
             <tbody>
                 {sections_rows_html}
@@ -280,5 +284,7 @@ if df_raw is not None:
     </body>
     </html>
     """
-    iframe_height = max(2000, len(df) * 200) 
+    iframe_height = max(2000, len(df) * 180) 
     components.html(full_html_page, height=iframe_height, scrolling=True)
+else:
+    st.error("데이터를 불러오지 못했습니다.")
