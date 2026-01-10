@@ -226,8 +226,8 @@ if df_raw is not None:
             /* 바로 이 부분입니다! */
             .bullet-marker {{ 
                 display: inline-block; 
-                width: 1em; 
-                margin-left: 0.1.5em; 
+                width: 0.1em; 
+                margin-left: 0.1em; 
                 text-align: left;
             }}
             .bullet-line {{ 
