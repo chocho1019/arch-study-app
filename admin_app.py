@@ -36,7 +36,7 @@ def format_drive_link(link):
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # [수정] 모든 불렛 기호와 번호를 감지하여 flex 구조로 변환
+    # 모든 불렛 기호와 번호를 감지하여 flex 구조로 변환
     pattern = r'<p>(<span class="bullet-marker">.*?</span>|[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿\*\u2022]|(?:\d+[\)\.]))\s*(.*?)<\/p>'
     replacement = r'<div class="bullet-line"><span class="bullet-marker">\1</span><span class="bullet-content">\2</span></div>'
     return re.sub(pattern, replacement, html_text, flags=re.DOTALL)
@@ -219,7 +219,7 @@ if df_raw is not None:
             .bullet-marker {{
                 display: inline-block !important;
                 flex-shrink: 0 !important;
-                width: 1.2em !important;
+                width: 1.8em !important;   /* [수정] 1.2em에서 1.5배인 1.8em으로 확대하여 간격 확보 */
                 text-align: left !important;
                 font-weight: normal;
             }}
@@ -278,6 +278,9 @@ if df_raw is not None:
             
             .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
             .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; orphans: 3; widows: 3; }}
+
+            /* [수정] 불렛 라인 들여쓰기를 마커 너비와 동일하게 1.8em으로 조정 */
+            .bullet-line {{ padding-left: 1.8em !important; text-indent: -1.8em !important; }}
 
             .image-wrapper {{ margin: 5px 0; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
