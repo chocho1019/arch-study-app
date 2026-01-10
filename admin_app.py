@@ -227,12 +227,12 @@ if df_raw is not None:
             .bullet-marker {{ 
                 display: inline-block; 
                 width: 1em; 
-                margin-left: 0.2em; 
+                margin-left: 0.1.5em; 
                 text-align: left;
             }}
             .bullet-line {{ 
-                padding-left: 1.35em !important; 
-                text-indent: -1.35em !important; 
+                padding-left: 1.0em !important; 
+                text-indent: -1.0em !important; 
             }}
 
             .image-wrapper {{ margin: 5px 0; }}
