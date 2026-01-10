@@ -212,16 +212,14 @@ if df_raw is not None:
             .bullet-line {{
                 display: flex !important;
                 align-items: flex-start !important;
-                /* [수정] 왼쪽 마진을 음수(-0.4em)로 주어 기호를 앞으로 뺌 */
-                margin: 4px 0 4px -0.4em !important;
+                margin: 4px 0 !important;
                 line-height: 1.5;
             }}
 
             .bullet-marker {{
                 display: inline-block !important;
                 flex-shrink: 0 !important;
-                /* [수정] 기호 너비를 1.3em으로 최적화하여 간격을 조절 */
-                width: 1.3em !important; 
+                width: 1.4em !important; 
                 text-align: left !important;
                 font-weight: normal;
             }}
@@ -229,6 +227,15 @@ if df_raw is not None:
             .bullet-content {{
                 flex: 1 !important;
                 word-break: keep-all;
+            }}
+            
+            /* [추가 수정] '*' 기호를 사용한 리스트(ul/li)의 들여쓰기를 절반으로 줄임 */
+            .concept-body ul, .answer-body ul, .problem-body ul {{
+                padding-left: 1.2em !important;
+                margin: 4px 0 !important;
+            }}
+            .concept-body li, .answer-body li, .problem-body li {{
+                margin-bottom: 2px !important;
             }}
 
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.4; text-align: left; background-color: white; }}
