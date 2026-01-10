@@ -212,15 +212,16 @@ if df_raw is not None:
             .bullet-line {{
                 display: flex !important;
                 align-items: flex-start !important;
-                margin: 4px 0 !important;
+                /* [수정] 왼쪽 마진을 음수(-0.4em)로 주어 기호를 앞으로 뺌 */
+                margin: 4px 0 4px -0.4em !important;
                 line-height: 1.5;
             }}
 
             .bullet-marker {{
                 display: inline-block !important;
                 flex-shrink: 0 !important;
-                /* [수정] 간격을 0.7em 체감 수준으로 조정 (기존 1.8em -> 1.2em) */
-                width: 1.4em !important; 
+                /* [수정] 기호 너비를 1.3em으로 최적화하여 간격을 조절 */
+                width: 1.3em !important; 
                 text-align: left !important;
                 font-weight: normal;
             }}
