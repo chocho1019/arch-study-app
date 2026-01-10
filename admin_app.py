@@ -227,7 +227,7 @@ if df_raw is not None:
             .bullet-marker {{ 
                 display: inline-block; 
                 width: 1em; 
-                margin-left: 0.25em; 
+                margin-left: 0.2em; 
                 text-align: left;
             }}
             .bullet-line {{ 
