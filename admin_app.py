@@ -36,17 +36,17 @@ def format_drive_link(link):
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # 기존 정규표현식에 '-'를 포함하여 bullet-line 클래스를 부여합니다.
-    pattern = r'<p>([-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
+    # [수정] &nbsp;가 포함된 패턴까지 포함하여 bullet-line 클래스를 부여하도록 확장
+    # 동그라미 숫자 기호들과 '-' 기호 모두를 감지합니다.
+    pattern = r'<p>((?:&nbsp;)*[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿⓫⓬⓭⓮⓯\*\u2022]|(?:\d+[\)\.]))'
     return re.sub(pattern, r'<p class="bullet-line">\1', html_text)
 
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan': return ""
     
-    # [수정 사항] '-'로 시작하는 문장 앞에 공백(&nbsp;)을 추가하여 
-    # 동그라미 숫자와 첫 글자 시작 위치를 맞춥니다.
-    # 마크다운 리스트 문법 유지를 위해 \- 형태로 처리합니다.
-    text = re.sub(r'^(\s*)-\s', r'\1&nbsp;&nbsp;\- ', text, flags=re.MULTILINE)
+    # [수정] '-' 기호가 동그라미 숫자와 수직 정렬을 이루도록 공백(&nbsp;) 삽입 로직 최적화
+    # - 기호 자체를 들여쓰기 공간 안으로 밀어 넣어 줄바꿈 시 글자 시작 위치를 맞춥니다.
+    text = re.sub(r'^(\s*)-\s', r'\1&nbsp;\-&nbsp;', text, flags=re.MULTILINE)
     
     lines = text.splitlines()
     processed_lines = []
@@ -55,7 +55,6 @@ def preprocess_markdown(text):
         if not line: continue
         if i < len(lines) - 1:
             next_line = lines[i+1].strip()
-            # 테이블 형태 유지 로직
             if line.startswith('|') and next_line.startswith('|'):
                 processed_lines.append(line + "\n")
             else:
