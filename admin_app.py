@@ -46,6 +46,7 @@ def preprocess_markdown(text):
     # [수정 핵심] '-' 기호 앞에 &nbsp;를 추가하는 대신 고정 폭 span으로 감싸고 
     # CSS에서 미세하게 마진을 조정하여 열을 맞춥니다.
     text = re.sub(r'^(\s*)-\s', r'\1<span class="bullet-marker">-</span> ', text, flags=re.MULTILINE)
+
     
     lines = text.splitlines()
     processed_lines = []
@@ -218,6 +219,25 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
+    /* ... 기타 설정들 ... */
+
+            .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; orphans: 3; widows: 3; }}
+
+            /* 바로 이 부분입니다! */
+            .bullet-marker {{ 
+                display: inline-block; 
+                width: 1em; 
+                margin-left: 0.35em; 
+                text-align: left;
+            }}
+            .bullet-line {{ 
+                padding-left: 1.35em !important; 
+                text-indent: -1.35em !important; 
+            }}
+
+            .image-wrapper {{ margin: 5px 0; }}
+            /* ... 나머지 설정들 ... */
+                
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.4; text-align: left; background-color: white; }}
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
