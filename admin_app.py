@@ -36,24 +36,14 @@ def format_drive_link(link):
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    
     # [수정] 모든 불렛 기호와 번호를 감지하여 flex 구조로 변환
-    # 기호 부분(span.bullet-marker)과 나머지 텍스트를 분리하는 정규식
     pattern = r'<p>(<span class="bullet-marker">.*?</span>|[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿\*\u2022]|(?:\d+[\)\.]))\s*(.*?)<\/p>'
-    
-    # <div class="bullet-line"> 구조로 변경하여 flex 적용 가능하게 함
     replacement = r'<div class="bullet-line"><span class="bullet-marker">\1</span><span class="bullet-content">\2</span></div>'
-    
     return re.sub(pattern, replacement, html_text, flags=re.DOTALL)
 
 def preprocess_markdown(text):
     if not text or str(text).lower() == 'nan': return ""
-    
-    # [수정 핵심] '-' 기호 앞에 &nbsp;를 추가하는 대신 고정 폭 span으로 감싸고 
-    # CSS에서 미세하게 마진을 조정하여 열을 맞춥니다.
     text = re.sub(r'^(\s*)-\s', r'\1<span class="bullet-marker">-</span> ', text, flags=re.MULTILINE)
-
-    
     lines = text.splitlines()
     processed_lines = []
     for i, line in enumerate(lines):
@@ -126,7 +116,6 @@ if df_raw is not None:
         first_row = valid_rows.iloc[0] if not valid_rows.empty else group.iloc[0]
         current_main_cat = str(first_row.get('대카테고리', '')).strip()
 
-        # 대카테고리 헤더 (인쇄 시 다음 행과 분리 방지 설정)
         if current_main_cat and current_main_cat != last_main_cat:
             sections_rows_html += f'<tr style="page-break-after: avoid !important;"><td colspan="2"><div class="main-section-header">{current_main_cat}</div></td></tr>'
             last_main_cat = current_main_cat
@@ -139,7 +128,6 @@ if df_raw is not None:
             sub_num = sub_num_raw
         category_title = f"{sub_num}. {sub_cat_name}" if sub_num else sub_cat_name
 
-        # 첫 번째 블록 감지를 위한 플래그
         first_c = True
         first_p = True
 
@@ -164,7 +152,6 @@ if df_raw is not None:
                 c_body = apply_custom_indent(c_body)
                 c_img_tag = f'<div class="image-wrapper"><img src="{format_drive_link(concept_img_url)}" class="content-img" loading="lazy"></div>' if concept_img_url and concept_img_url.lower() != "nan" else ""
                 
-                # 첫 번째 개념 블록에 'first-block' 클래스 부여
                 c_class = "content-block" + (" first-block" if first_c else "")
                 first_c = False
 
@@ -192,7 +179,6 @@ if df_raw is not None:
                 info_tag = f'<div class="info-tag">[{info} 출제년도]</div>' if info else ""
                 p_body_cleaned = p_body.replace("<p>", "").replace("</p>", "")
                 
-                # 첫 번째 문제 블록에 'first-block' 클래스 부여
                 p_class = "content-block problem-block" + (" first-block" if first_p else "")
                 first_p = False
 
@@ -211,12 +197,10 @@ if df_raw is not None:
         """
 
     if only_concept:
-        m_style = "column-count: 2; column-gap: 30px; column-rule: 1px solid #edf2f7; padding: 10px; column-fill: auto;"
-        h_box_d, p_c_count, c_h_w, p_h_d, c_c_w, c_c_b = "none", "2", "100%", "none", "100%", "none"
+        h_box_d, c_h_w, p_h_d, c_c_w, c_c_b = "none", "100%", "none", "100%", "none"
         s_break = "break-inside: avoid-column; display: block; width: 100%;"
     else:
-        m_style = ""
-        h_box_d, p_c_count, c_h_w, p_h_d, c_c_w, c_c_b = "flex", "1", "60%", "block", "60%", "1px solid #edf2f7"
+        h_box_d, c_h_w, p_h_d, c_c_w, c_c_b = "flex", "60%", "block", "60%", "1px solid #edf2f7"
         s_break = "page-break-inside: auto;" 
 
     full_html_page = f"""
@@ -225,34 +209,26 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-    /* [수정] 불렛 라인 전체 구조 */
-.bullet-line {
-    display: flex !important;
-    align-items: flex-start !important; /* 상단 정렬 */
-    margin: 4px 0 !important;
-    line-height: 1.5;
-}
+            .bullet-line {{
+                display: flex !important;
+                align-items: flex-start !important;
+                margin: 4px 0 !important;
+                line-height: 1.5;
+            }}
 
-/* [수정] 불렛 기호 및 숫자 영역 */
-.bullet-marker {
-    display: inline-block !important;
-    flex-shrink: 0 !important;   /* 너비 고정 */
-    width: 1.2em !important;     /* 기호가 차지할 고정 너비 */
-    text-align: left !important;
-    font-weight: normal;
-}
+            .bullet-marker {{
+                display: inline-block !important;
+                flex-shrink: 0 !important;
+                width: 1.2em !important;
+                text-align: left !important;
+                font-weight: normal;
+            }}
 
-/* [수정] 텍스트 내용 영역 (넘치는 글자가 정렬되는 곳) */
-.bullet-content {
-    flex: 1 !important;
-    word-break: keep-all;        /* 한글 단어 단위 줄바꿈 */
-}
+            .bullet-content {{
+                flex: 1 !important;
+                word-break: keep-all;
+            }}
 
-/* 기존 concept-body 내부의 p 태그 여백 조정 (bullet-line과 중복 방지) */
-.concept-body p, .answer-body p, .problem-body p { 
-    margin: 2px 0; 
-}
-                
             body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.4; text-align: left; background-color: white; }}
             .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
             .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
@@ -288,8 +264,6 @@ if df_raw is not None:
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             
             .content-block {{ width: 100%; margin-bottom: 10px; page-break-inside: avoid !important; break-inside: avoid !important; }}
-            
-            /* [수정 핵심] 첫 번째 블록이 헤더와 떨어지지 않게 설정 */
             .first-block {{ page-break-before: avoid !important; break-before: avoid-page !important; }}
             
             .category-title {{ 
@@ -305,7 +279,6 @@ if df_raw is not None:
             .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
             .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; orphans: 3; widows: 3; }}
 
-            .bullet-line {{ padding-left: 1.2em !important; text-indent: -1.2em !important; }}
             .image-wrapper {{ margin: 5px 0; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
             .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
