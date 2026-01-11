@@ -294,21 +294,22 @@ if df_raw is not None:
             .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
-            table:not(.master-table) th { 
-    background-color: #f7fafc; 
-    font-weight: bold; 
-    padding: 12px 6px;       /* 상하 여백을 12px로 늘려 높이 확보 */
-    vertical-align: middle;  /* 수직 중앙 정렬 */
-    border-bottom: 2px solid #cbd5e0; /* 헤더 강조를 위해 선 두께 살짝 추가 */
-}
+            /* 수정된 부분: 중괄호를 {{ }} 로 변경 */
+            table:not(.master-table) th {{ 
+                background-color: #f7fafc; 
+                font-weight: bold; 
+                padding: 12px 6px;       
+                vertical-align: middle;  
+                border-bottom: 2px solid #cbd5e0;
+            }}
 
-table:not(.master-table) td { 
-    border-bottom: 1px solid #e2e8f0; 
-    padding: 8px 6px;        /* 일반 셀도 기존 3px에서 8px로 늘려 쾌적하게 변경 */
-    font-size: 0.85em; 
-    text-align: left; 
-    vertical-align: middle;  /* 1번 사진처럼 글자가 위로 쏠리는 현상 방지 */
-}
+            table:not(.master-table) td {{ 
+                border-bottom: 1px solid #e2e8f0; 
+                padding: 8px 6px;        
+                font-size: 0.85em; 
+                text-align: left; 
+                vertical-align: middle;  
+            }}
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
