@@ -84,7 +84,6 @@ if df_raw is not None:
     st.sidebar.header("🔍 필터 및 인쇄 설정")
     only_concept = st.sidebar.checkbox("개념만 보기")
     
-    # 배율 조정 슬라이더
     print_scale = st.sidebar.slider("인쇄 배율 조정 (%)", min_value=50, max_value=150, value=100, step=5)
     scale_factor = print_scale / 100.0
 
@@ -121,7 +120,7 @@ if df_raw is not None:
         current_main_cat = str(first_row.get('대카테고리', '')).strip()
 
         if current_main_cat and current_main_cat != last_main_cat:
-            sections_rows_html += f'<tr style="page-break-after: avoid !important;"><td colspan="2"><div class="main-section-header">{current_main_cat}</div></td></tr>'
+            sections_rows_html += f'<tr class="main-cat-row"><td colspan="2"><div class="main-section-header">{current_main_cat}</div></td></tr>'
             last_main_cat = current_main_cat
 
         sub_cat_name = str(first_row.get('소카테고리', '')).strip()
@@ -188,19 +187,21 @@ if df_raw is not None:
 
                 group_problem_html += f'<div class="{p_class}">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body_cleaned}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
+        # 핵심 수정: section-container 내부에 header와 sub-section을 밀접하게 배치
         sections_rows_html += f"""
-        <tr><td colspan="2">
-            <div class="section-container">
-                <div class="section-header">{category_title}</div>
-                <div class="sub-section">
-                    <div class="column concept-col">{group_concept_html}</div>
-                    {f'<div class="column problem-col">{group_problem_html}</div>' if not only_concept else ''}
+        <tr class="section-row">
+            <td colspan="2">
+                <div class="section-wrapper">
+                    <div class="section-header">{category_title}</div>
+                    <div class="sub-section">
+                        <div class="column concept-col">{group_concept_html}</div>
+                        {f'<div class="column problem-col">{group_problem_html}</div>' if not only_concept else ''}
+                    </div>
                 </div>
-            </div>
-        </td></tr>
+            </td>
+        </tr>
         """
 
-    # 3. 레이아웃 모드별 스타일 및 컨테이너 설정
     if only_concept:
         layout_style = f"""
             .content-wrapper {{
@@ -209,19 +210,22 @@ if df_raw is not None:
                 column-rule: 1px solid #eee;
                 display: block;
             }}
-            .section-container {{
-                break-inside: avoid;
+            .section-wrapper {{
+                break-inside: avoid; /* 소카테고리 제목과 첫 내용을 한 묶음으로 취급 */
                 margin-bottom: {25 * scale_factor}px;
+                page-break-inside: avoid;
             }}
             .header-box {{ display: none; }}
         """
         container_start = '<div class="content-wrapper">'
         container_end = '</div>'
-        formatted_rows = sections_rows_html.replace('<tr><td colspan="2">', '').replace('</td></tr>', '')
+        formatted_rows = sections_rows_html.replace('<tr class="section-row"><td colspan="2">', '').replace('</td></tr>', '').replace('<tr class="main-cat-row"><td colspan="2">', '').replace('</td></tr>', '')
     else:
         layout_style = f"""
             .content-wrapper {{ display: block; }}
             .master-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
+            .section-row {{ page-break-inside: avoid !important; }}
+            .main-cat-row {{ page-break-after: avoid !important; }}
             .header-box {{ 
                 display: flex; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; 
                 font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; 
@@ -234,7 +238,6 @@ if df_raw is not None:
         container_end = '</tbody></table>'
         formatted_rows = sections_rows_html
 
-    # 4. 실시간 높이 감지 스크립트 (Iframe 여백 제거용)
     dynamic_height_js = """
     <script>
         function sendHeight() {
@@ -246,7 +249,6 @@ if df_raw is not None:
         }
         window.onload = sendHeight;
         window.onresize = sendHeight;
-        // 내용 변화 감지 (이미지 로딩 등)
         const observer = new ResizeObserver(sendHeight);
         observer.observe(document.body);
     </script>
@@ -266,10 +268,16 @@ if df_raw is not None:
                 line-height: 1.4; 
                 background-color: white; 
                 font-size: {14 * scale_factor}px; 
-                overflow-y: hidden; /* Iframe 내부 스크롤 방지 */
+                overflow-y: hidden;
             }}
             
             {layout_style}
+
+            .section-wrapper {{
+                width: 100%;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }}
 
             .bullet-line {{ display: flex !important; align-items: flex-start !important; margin: {4 * scale_factor}px 0 !important; line-height: 1.5; }}
             .bullet-marker {{ display: inline-block !important; flex-shrink: 0 !important; width: 1.4em !important; text-align: left !important; }}
@@ -285,8 +293,9 @@ if df_raw is not None:
             .section-header {{ 
                 width: 100%; background-color: #edf2f7; padding: {10 * scale_factor}px {15 * scale_factor}px; 
                 font-weight: bold; font-size: 1.0em; color: #718096; 
-                border-left: {5 * scale_factor}px solid #cbd5e0; box-sizing: border-box; margin-bottom: {8 * scale_factor}px; 
-                break-after: avoid; -webkit-print-color-adjust: exact; 
+                border-left: {5 * scale_factor}px solid #cbd5e0; box-sizing: border-box; margin-bottom: 2px;
+                page-break-after: avoid; /* 제목 바로 뒤에서 페이지가 잘리는 것 방지 */
+                -webkit-print-color-adjust: exact; 
             }}
             
             .sub-section {{ display: flex; width: 100%; }}
@@ -294,7 +303,7 @@ if df_raw is not None:
             .concept-col {{ width: {"100%" if only_concept else "60%"}; {"border-right: 1px solid #edf2f7;" if not only_concept else ""} }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             
-            .content-block {{ width: 100%; margin-bottom: {15 * scale_factor}px; break-inside: avoid; }}
+            .content-block {{ width: 100%; margin-bottom: {15 * scale_factor}px; break-inside: avoid; page-break-inside: avoid; }}
             .category-title {{ font-weight: bold; font-size: 1.1em; color: #1a202c; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; }}
             .freq-badge {{ color: #94a3b8; font-size: 0.85em; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }}
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; }}
@@ -308,6 +317,7 @@ if df_raw is not None:
                 .print-button-container {{ display: none !important; }}
                 @page {{ size: A4; margin: 10mm; }}
                 body {{ padding: 0; }}
+                .section-wrapper {{ break-inside: avoid !important; }}
             }}
         </style>
     </head>
@@ -325,7 +335,6 @@ if df_raw is not None:
     </html>
     """
     
-    # components.html의 높이를 초기값으로 설정하되, JS가 동적으로 크기를 조절하도록 함
     components.html(full_html_page, height=max(500, len(df) * 100 * scale_factor), scrolling=False)
 else:
     st.error("데이터를 불러오지 못했습니다.")
