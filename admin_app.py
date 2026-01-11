@@ -326,16 +326,26 @@ if df_raw is not None:
                 word-break: keep-all; /* 단어 단위로 줄바꿈되어 깔끔함 유지 */
             }}
 
+            /* 테이블 헤더(첫 번째 행) 높이 축소 설정 */
             table:not(.master-table) th {{ 
                 background-color: #f7fafc; 
                 font-weight: bold; 
                 text-align: left;
-                border-bottom: 2px solid #cbd5e0;
-                padding: 10px;
+                /* 위아래 padding을 4px로 줄여서 높이를 얇게 만듭니다 */
+                padding: 4px 10px !important; 
+                /* 선 두께를 1px로 줄여서 더 날렵하게 만듭니다 */
+                border-bottom: 1px solid #cbd5e0 !important;
+                font-size: 0.85em !important;
+                line-height: 1.2 !important;
+                vertical-align: middle !important;
             }}
 
-            table:not(.master-table) td {{ 
-                border-bottom: 1px solid #e2e8f0; 
+            /* 첫 번째 열의 패딩도 헤더와 맞춰서 조정 */
+            table:not(.master-table) td:first-child {{
+                padding: 6px 15px 6px 10px !important; /* 상하 여백을 6px 정도로 줄임 */
+                white-space: nowrap !important;
+                width: 1% !important;
+                vertical-align: middle !important;
             }}
             /* -------------------------------------------- */
 
