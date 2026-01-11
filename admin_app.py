@@ -187,7 +187,6 @@ if df_raw is not None:
 
                 group_problem_html += f'<div class="{p_class}">{info_tag}<div class="problem-body"><strong>{num_mun_display}{p_body_cleaned}</strong></div>{p_img_tag}<div class="answer-body">{a_body}</div></div>'
 
-        # 핵심 수정: section-container 내부에 header와 sub-section을 밀접하게 배치
         sections_rows_html += f"""
         <tr class="section-row">
             <td colspan="2">
@@ -211,7 +210,7 @@ if df_raw is not None:
                 display: block;
             }}
             .section-wrapper {{
-                break-inside: avoid; /* 소카테고리 제목과 첫 내용을 한 묶음으로 취급 */
+                break-inside: avoid;
                 margin-bottom: {25 * scale_factor}px;
                 page-break-inside: avoid;
             }}
@@ -238,6 +237,7 @@ if df_raw is not None:
         container_end = '</tbody></table>'
         formatted_rows = sections_rows_html
 
+    # 핵심 보강: 모든 이미지 로딩 후에도 높이를 재계산하도록 로직 수정
     dynamic_height_js = """
     <script>
         function sendHeight() {
@@ -247,10 +247,27 @@ if df_raw is not None:
                 height: height
             }, '*');
         }
-        window.onload = sendHeight;
+        
+        // 초기 로드 시 실행
+        window.onload = () => {
+            sendHeight();
+            // 이미지들에 대해 로드 완료 시 높이 재계산 이벤트 등록
+            const images = document.getElementsByTagName('img');
+            for (let img of images) {
+                img.onload = sendHeight;
+            }
+        };
+        
         window.onresize = sendHeight;
-        const observer = new ResizeObserver(sendHeight);
+        
+        // 동적 변화 감지
+        const observer = new ResizeObserver(entries => {
+            sendHeight();
+        });
         observer.observe(document.body);
+        
+        // 주기적으로 높이 체크 (비동기 이미지 로딩 대비)
+        setInterval(sendHeight, 1000);
     </script>
     """
 
@@ -268,7 +285,7 @@ if df_raw is not None:
                 line-height: 1.4; 
                 background-color: white; 
                 font-size: {14 * scale_factor}px; 
-                overflow-y: hidden;
+                overflow-y: visible !important; /* 내부 스크롤 허용하여 모든 이미지 로드 유도 */
             }}
             
             {layout_style}
@@ -294,7 +311,7 @@ if df_raw is not None:
                 width: 100%; background-color: #edf2f7; padding: {10 * scale_factor}px {15 * scale_factor}px; 
                 font-weight: bold; font-size: 1.0em; color: #718096; 
                 border-left: {5 * scale_factor}px solid #cbd5e0; box-sizing: border-box; margin-bottom: 2px;
-                page-break-after: avoid; /* 제목 바로 뒤에서 페이지가 잘리는 것 방지 */
+                page-break-after: avoid;
                 -webkit-print-color-adjust: exact; 
             }}
             
@@ -306,7 +323,7 @@ if df_raw is not None:
             .content-block {{ width: 100%; margin-bottom: {15 * scale_factor}px; break-inside: avoid; page-break-inside: avoid; }}
             .category-title {{ font-weight: bold; font-size: 1.1em; color: #1a202c; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; }}
             .freq-badge {{ color: #94a3b8; font-size: 0.85em; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }}
-            .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; }}
+            .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; min-height: 50px; display: block; }}
 
             table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: {10 * scale_factor}px 0; border-top: 2px solid #cbd5e0; table-layout: auto !important; font-size: 0.95em !important; }}
             table:not(.master-table) th {{ background-color: #f7fafc; font-weight: bold; padding: {6 * scale_factor}px {10 * scale_factor}px !important; border-bottom: 2px solid #cbd5e0 !important; }}
@@ -335,6 +352,8 @@ if df_raw is not None:
     </html>
     """
     
-    components.html(full_html_page, height=max(500, len(df) * 100 * scale_factor), scrolling=False)
+    # 5. Iframe 생성 - 초기 높이를 여유있게 주되 JS가 조절하도록 함
+    # 3회 이상 빈출 시 데이터가 적어보여도 이미지가 크면 잘리므로 기본 배수를 늘림
+    components.html(full_html_page, height=max(1200, len(df) * 350 * scale_factor), scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
