@@ -197,12 +197,38 @@ if df_raw is not None:
         </td></tr>
         """
 
+    # 레이아웃 모드에 따른 동적 스타일 설정
     if only_concept:
-        h_box_d, c_h_w, p_h_d, c_c_w, c_c_b = "none", "100%", "none", "100%", "none"
-        s_break = "break-inside: avoid-column; display: block; width: 100%;"
+        # 개념만 보기: 다단(2컬럼) 레이아웃 활성화
+        layout_style = f"""
+            .content-wrapper {{
+                column-count: 2;
+                column-gap: 30px;
+                column-rule: 1px solid #eee;
+                display: block;
+            }}
+            .section-container {{
+                break-inside: avoid; /* 단 중간에 섹션이 잘리지 않게 함 */
+                margin-bottom: 25px;
+            }}
+            .header-box {{ display: none; }}
+        """
+        container_start = '<div class="content-wrapper">'
+        container_end = '</div>'
+        # 표 구조가 아닌 div 구조로 데이터 재구성
+        formatted_rows = sections_rows_html.replace('<tr><td colspan="2">', '').replace('</td></tr>', '')
     else:
-        h_box_d, c_h_w, p_h_d, c_c_w, c_c_b = "flex", "60%", "block", "60%", "1px solid #edf2f7"
-        s_break = "page-break-inside: auto;" 
+        # 개념+문제 보기: 기존 테이블(Master Table) 구조 유지
+        layout_style = f"""
+            .content-wrapper {{ display: block; }}
+            .master-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
+            .header-box {{ display: flex; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; }}
+            .header-box .concept-h {{ width: 60%; padding: 4px 12px; box-sizing: border-box; border-right: 1px solid #edf2f7; }}
+            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; }}
+        """
+        container_start = f'<table class="master-table"><thead style="display: table-header-group;"><tr><td colspan="2"><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr></thead><tbody>'
+        container_end = '</tbody></table>'
+        formatted_rows = sections_rows_html
 
     full_html_page = f"""
     <!DOCTYPE html>
@@ -210,155 +236,55 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            .bullet-line {{
-                display: flex !important;
-                align-items: flex-start !important;
-                margin: 4px 0 !important;
-                line-height: 1.5;
-            }}
-
-            .bullet-marker {{
-                display: inline-block !important;
-                flex-shrink: 0 !important;
-                width: 1.4em !important; 
-                text-align: left !important;
-                font-weight: normal;
-            }}
-
-            .bullet-content {{
-                flex: 1 !important;
-                word-break: keep-all;
-            }}
+            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 20px; color: #333; line-height: 1.4; background-color: white; }}
             
-            /* [추가 수정] '*' 기호를 사용한 리스트(ul/li)의 들여쓰기를 절반으로 줄임 */
-            .concept-body ul, .answer-body ul, .problem-body ul {{
-                padding-left: 2.4em !important;
-                margin: 4px 0 !important;
-            }}
-            .concept-body li, .answer-body li, .problem-body li {{
-                margin-bottom: 2px !important;
-            }}
+            /* 다단 및 레이아웃 제어 */
+            {layout_style}
 
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; color: #333; line-height: 1.4; text-align: left; background-color: white; }}
-            .print-button-container {{ padding: 10px 20px; background: white; border-bottom: 1px solid #eee; display: block; text-align: left; }}
-            .btn-print {{ background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }}
-            
-            .master-table {{ width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }}
-            .master-table, tr, td {{ page-break-inside: auto !important; }}
-
-            .header-box {{ display: {h_box_d}; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; }}
-            .header-box .concept-h {{ width: {c_h_w}; padding: 4px 12px; box-sizing: border-box; border-right: {c_c_b}; }}
-            .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; display: {p_h_d}; }}
+            .bullet-line {{ display: flex !important; align-items: flex-start !important; margin: 4px 0 !important; line-height: 1.5; }}
+            .bullet-marker {{ display: inline-block !important; flex-shrink: 0 !important; width: 1.4em !important; text-align: left !important; }}
+            .bullet-content {{ flex: 1 !important; word-break: keep-all; }}
             
             .main-section-header {{
                 width: 100%; background-color: #dbe4ef; padding: 8px 15px; font-weight: bold; font-size: 1.1em; color: #2d3748;
-                border-left: 5px solid #4a5568; box-sizing: border-box; margin: 10px 0 5px 0;
-                page-break-after: avoid !important; break-after: avoid-page !important; -webkit-print-color-adjust: exact;
+                border-left: 5px solid #4a5568; box-sizing: border-box; margin: 15px 0 10px 0;
+                break-after: avoid; -webkit-print-color-adjust: exact;
             }}
 
-            .section-container {{ margin-bottom: 20px; text-align: left; {s_break} box-sizing: border-box; }}
-            
             .section-header {{ 
                 width: 100%; background-color: #edf2f7; padding: 10px 15px; font-weight: bold; font-size: 0.95em; color: #718096; 
-                border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-bottom: 8px; 
-                page-break-after: avoid !important; break-after: avoid-page !important;
-                -webkit-print-color-adjust: exact; 
+                border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-bottom: 8px; break-after: avoid; -webkit-print-color-adjust: exact; 
             }}
             
-            .sub-section {{ 
-                display: flex; width: 100%; align-items: stretch; 
-                page-break-before: avoid !important; break-before: avoid-page !important;
-            }}
-            .column {{ display: flex; flex-direction: column; padding: 2px 10px; box-sizing: border-box; }}
-            .concept-col {{ width: {c_c_w}; border-right: {c_c_b}; }}
+            .sub-section {{ display: flex; width: 100%; }}
+            .column {{ display: flex; flex-direction: column; padding: 2px 10px; box-sizing: border-box; flex: 1; }}
+            .concept-col {{ width: {"100%" if only_concept else "60%"}; {"border-right: 1px solid #edf2f7;" if not only_concept else ""} }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             
-            .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid !important; break-inside: avoid !important; }}
-            .first-block {{ page-break-before: avoid !important; break-before: avoid-page !important; }}
+            .content-block {{ width: 100%; margin-bottom: 15px; break-inside: avoid; }}
+            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; }}
+            .freq-badge {{ color: #94a3b8; font-size: 0.8em; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }}
             
-            .category-title {{ 
-                font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 3px; 
-                display: flex; align-items: center; justify-content: space-between; 
-            }}
-            .freq-badge {{
-                color: #94a3b8; font-size: 0.8em; font-weight: normal; 
-                border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px;
-                white-space: nowrap;
-            }}
-            
-            .concept-body, .answer-body, .problem-body {{ color: #4a5568; font-size: 0.95em; }}
-            .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; orphans: 3; widows: 3; }}
-
-            .image-wrapper {{ margin: 5px 0; }}
-            .content-img {{ max-width: 80%; height: auto; border-radius: 4px; border: 1px solid #eee; display: inline-block; }}
-            .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
-            .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
-            
-            /* --- 마크다운 테이블 최종 최적화 설정 --- */
-            /* --- 마크다운 테이블 최종 최적화 (헤더 글자 크기 복구) --- */
-            table:not(.master-table) {{ 
-                border-collapse: collapse; 
-                width: 100%; 
-                margin: 10px 0; 
-                border-top: 2px solid #cbd5e0; 
-                table-layout: auto !important;
-                font-size: 0.9em !important; /* 전체 테이블 글씨 크기 고정 */
-            }}
-
-            /* 첫 번째 행 (헤더) 설정 */
-            table:not(.master-table) th {{ 
-                background-color: #f7fafc; 
-                font-weight: bold; 
-                text-align: left;
-                padding: 6px 10px !important;  /* 높이를 낮추기 위해 padding 축소 */
-                border-bottom: 2px solid #cbd5e0 !important;
-                font-size: 1em !important;     /* 테이블 기본(0.9em)과 동일하게 유지 */
-                line-height: 1.4 !important;
-                vertical-align: middle !important;
-                color: #333;
-            }}
-
-            /* 첫 번째 열 (구분 등) 설정 */
-            table:not(.master-table) td:first-child {{
-                white-space: nowrap !important; /* 절대 2줄 쓰기 방지 */
-                width: 1% !important;          /* 글자 폭에 맞게 자동 너비 */
-                padding: 8px 15px 8px 10px !important; /* 상하 여백 슬림화 */
-                background-color: #f8f9fa;
-                font-weight: bold;
-                vertical-align: middle !important;
-            }}
-
-            /* 내용 열 설정 */
-            table:not(.master-table) td:last-child {{
-                padding: 8px 10px !important;
-                vertical-align: middle !important;
-                line-height: 1.5;
-            }}
-
-            table:not(.master-table) td {{ 
-                border-bottom: 1px solid #e2e8f0; 
-            }}
-            /* -------------------------------------------- */
+            /* 마크다운 테이블 스타일 유지 */
+            table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 10px 0; border-top: 2px solid #cbd5e0; table-layout: auto !important; font-size: 0.9em !important; }}
+            table:not(.master-table) th {{ background-color: #f7fafc; font-weight: bold; padding: 6px 10px !important; border-bottom: 2px solid #cbd5e0 !important; }}
+            table:not(.master-table) td:first-child {{ white-space: nowrap !important; width: 1% !important; padding: 8px 15px 8px 10px !important; background-color: #f8f9fa; font-weight: bold; }}
+            table:not(.master-table) td {{ border-bottom: 1px solid #e2e8f0; padding: 8px 10px !important; vertical-align: middle !important; }}
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                body {{ background: none; }}
-                .master-table {{ table-layout: fixed; }}
-                tr {{ page-break-inside: auto !important; }}
-                td {{ page-break-inside: auto !important; }}
+                @page {{ size: A4; margin: 15mm; }}
+                body {{ padding: 0; }}
             }}
         </style>
     </head>
     <body>
-        <div class="print-button-container"><button class="btn-print" onclick="window.print()">🖨️ PDF로 저장 (인쇄하기)</button></div>
-        <table class="master-table">
-            <thead style="display: table-header-group;">
-                <tr><td colspan="2"><div class="header-box"><div class="concept-h">개념</div><div class="problem-h">문제</div></div></td></tr>
-            </thead>
-            <tbody>
-                {sections_rows_html}
-            </tbody>
-        </table>
+        <div class="print-button-container" style="padding: 10px; border-bottom: 1px solid #eee;">
+            <button class="btn-print" onclick="window.print()" style="background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">🖨️ PDF로 저장 (2단 인쇄 모드)</button>
+        </div>
+        {container_start}
+        {formatted_rows}
+        {container_end}
     </body>
     </html>
     """
