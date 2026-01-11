@@ -289,7 +289,7 @@ if df_raw is not None:
             .concept-body p, .answer-body p, .problem-body p {{ margin: 2px 0; line-height: 1.5; orphans: 3; widows: 3; }}
 
             .image-wrapper {{ margin: 5px 0; }}
-            .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; display: block; }}
+            .content-img {{ max-width: 80%; height: 400px; border-radius: 4px; border: 1px solid #eee; display: inline-block; }}
             .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
