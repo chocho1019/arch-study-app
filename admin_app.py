@@ -295,57 +295,48 @@ if df_raw is not None:
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
             /* --- 마크다운 테이블 최종 최적화 설정 --- */
+            /* --- 마크다운 테이블 최종 최적화 (헤더 글자 크기 복구) --- */
             table:not(.master-table) {{ 
                 border-collapse: collapse; 
                 width: 100%; 
                 margin: 10px 0; 
                 border-top: 2px solid #cbd5e0; 
                 table-layout: auto !important;
-                /* 전체 테이블 폰트 크기를 개념 글씨의 95% 수준으로 조정 */
-                font-size: 0.9em !important; 
+                font-size: 0.9em !important; /* 전체 테이블 글씨 크기 고정 */
             }}
 
-            /* 1번째 열 (구분, 항목 등) */
-            table:not(.master-table) th:first-child,
-            table:not(.master-table) td:first-child {{
-                white-space: nowrap !important;  /* 글자 수에 상관없이 1줄 유지 */
-                width: 1% !important;           /* 글자 폭에 딱 맞게 너비 고정 */
-                padding: 10px 15px !important;  /* 적절한 좌우 간격 */
-                background-color: #f8f9fa;
-                font-weight: bold;
-                color: #2d3748;
-                vertical-align: middle !important;
-            }}
-
-            /* 2번째 열 (상세 내용) */
-            table:not(.master-table) td:last-child {{
-                padding: 10px 12px !important;
-                vertical-align: middle !important;
-                line-height: 1.5;
-                color: #4a5568;
-                word-break: keep-all; /* 단어 단위로 줄바꿈되어 깔끔함 유지 */
-            }}
-
-            /* 테이블 헤더(첫 번째 행) 높이 축소 설정 */
+            /* 첫 번째 행 (헤더) 설정 */
             table:not(.master-table) th {{ 
                 background-color: #f7fafc; 
                 font-weight: bold; 
                 text-align: left;
-                /* 위아래 padding을 4px로 줄여서 높이를 얇게 만듭니다 */
-                padding: 4px 10px !important; 
-                /* 선 두께를 1px로 줄여서 더 날렵하게 만듭니다 */
-                border-bottom: 1px solid #cbd5e0 !important;
-                font-size: 0.85em !important;
-                line-height: 1.2 !important;
+                padding: 6px 10px !important;  /* 높이를 낮추기 위해 padding 축소 */
+                border-bottom: 2px solid #cbd5e0 !important;
+                font-size: 1em !important;     /* 테이블 기본(0.9em)과 동일하게 유지 */
+                line-height: 1.4 !important;
+                vertical-align: middle !important;
+                color: #333;
+            }}
+
+            /* 첫 번째 열 (구분 등) 설정 */
+            table:not(.master-table) td:first-child {{
+                white-space: nowrap !important; /* 절대 2줄 쓰기 방지 */
+                width: 1% !important;          /* 글자 폭에 맞게 자동 너비 */
+                padding: 8px 15px 8px 10px !important; /* 상하 여백 슬림화 */
+                background-color: #f8f9fa;
+                font-weight: bold;
                 vertical-align: middle !important;
             }}
 
-            /* 첫 번째 열의 패딩도 헤더와 맞춰서 조정 */
-            table:not(.master-table) td:first-child {{
-                padding: 6px 15px 6px 10px !important; /* 상하 여백을 6px 정도로 줄임 */
-                white-space: nowrap !important;
-                width: 1% !important;
+            /* 내용 열 설정 */
+            table:not(.master-table) td:last-child {{
+                padding: 8px 10px !important;
                 vertical-align: middle !important;
+                line-height: 1.5;
+            }}
+
+            table:not(.master-table) td {{ 
+                border-bottom: 1px solid #e2e8f0; 
             }}
             /* -------------------------------------------- */
 
