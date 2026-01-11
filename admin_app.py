@@ -324,3 +324,4 @@ if df_raw is not None:
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
+
