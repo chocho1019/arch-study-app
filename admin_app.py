@@ -294,31 +294,36 @@ if df_raw is not None:
             .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
-            /* --- 마크다운 테이블 간격 및 줄바꿈 방지 설정 --- */
+            /* --- 마크다운 테이블 최종 최적화 설정 --- */
             table:not(.master-table) {{ 
                 border-collapse: collapse; 
                 width: 100%; 
-                margin: 12px 0; 
+                margin: 10px 0; 
                 border-top: 2px solid #cbd5e0; 
-                table-layout: auto !important; /* 글자 길이에 따라 자동 확장 */
+                table-layout: auto !important;
+                /* 전체 테이블 폰트 크기를 개념 글씨의 95% 수준으로 조정 */
+                font-size: 0.9em !important; 
             }}
 
-            /* 1번째 열 (구분, 산정식 등) 설정 */
+            /* 1번째 열 (구분, 항목 등) */
             table:not(.master-table) th:first-child,
             table:not(.master-table) td:first-child {{
-                white-space: nowrap !important;  /* 절대 2줄 쓰기 방지 */
-                width: 1% !important;           /* 내용만큼만 최소 너비 차지 */
-                padding: 12px 20px 12px 10px !important; /* 상하 12px, 우측 여백 20px로 간격 확보 */
-                background-color: #f8f9fa;       /* 왼쪽 열 배경색으로 가독성 향상 */
+                white-space: nowrap !important;  /* 글자 수에 상관없이 1줄 유지 */
+                width: 1% !important;           /* 글자 폭에 딱 맞게 너비 고정 */
+                padding: 10px 15px !important;  /* 적절한 좌우 간격 */
+                background-color: #f8f9fa;
                 font-weight: bold;
+                color: #2d3748;
                 vertical-align: middle !important;
             }}
 
-            /* 2번째 열 (내용) 설정 */
+            /* 2번째 열 (상세 내용) */
             table:not(.master-table) td:last-child {{
-                padding: 12px 10px !important;
+                padding: 10px 12px !important;
                 vertical-align: middle !important;
-                line-height: 1.6;
+                line-height: 1.5;
+                color: #4a5568;
+                word-break: keep-all; /* 단어 단위로 줄바꿈되어 깔끔함 유지 */
             }}
 
             table:not(.master-table) th {{ 
@@ -326,6 +331,7 @@ if df_raw is not None:
                 font-weight: bold; 
                 text-align: left;
                 border-bottom: 2px solid #cbd5e0;
+                padding: 10px;
             }}
 
             table:not(.master-table) td {{ 
