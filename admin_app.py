@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -37,7 +36,6 @@ def format_drive_link(link):
 def apply_custom_indent(html_text):
     if not html_text:
         return ""
-    # 모든 불렛 기호와 번호를 감지하여 flex 구조로 변환
     pattern = r'<p>(<span class="bullet-marker">.*?</span>|[-①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮❶❷❸❹❺❻❼❽❾❿\*\u2022]|(?:\d+[\)\.]))\s*(.*?)<\/p>'
     replacement = r'<div class="bullet-line"><span class="bullet-marker">\1</span><span class="bullet-content">\2</span></div>'
     return re.sub(pattern, replacement, html_text, flags=re.DOTALL)
@@ -83,8 +81,13 @@ if df_raw is not None:
 st.title("건축기사 요약 노트 (커스텀 디자인 모드)")
 
 if df_raw is not None:
-    st.sidebar.header("🔍 필터 설정")
+    st.sidebar.header("🔍 필터 및 인쇄 설정")
     only_concept = st.sidebar.checkbox("개념만 보기")
+    
+    # 배율 조정 슬라이더 추가
+    print_scale = st.sidebar.slider("인쇄 배율 조정 (%)", min_value=50, max_value=150, value=100, step=5)
+    scale_factor = print_scale / 100.0
+
     subject_list = ["전체"] + sorted(list(df_raw['과목'].unique())) if '과목' in df_raw.columns else ["전체"]
     selected_subject = st.sidebar.selectbox("과목 선택", subject_list)
     
@@ -199,30 +202,31 @@ if df_raw is not None:
 
     # 레이아웃 모드에 따른 동적 스타일 설정
     if only_concept:
-        # 개념만 보기: 다단(2컬럼) 레이아웃 활성화
         layout_style = f"""
             .content-wrapper {{
                 column-count: 2;
-                column-gap: 30px;
+                column-gap: {30 * scale_factor}px;
                 column-rule: 1px solid #eee;
                 display: block;
             }}
             .section-container {{
-                break-inside: avoid; /* 단 중간에 섹션이 잘리지 않게 함 */
-                margin-bottom: 25px;
+                break-inside: avoid;
+                margin-bottom: {25 * scale_factor}px;
             }}
             .header-box {{ display: none; }}
         """
         container_start = '<div class="content-wrapper">'
         container_end = '</div>'
-        # 표 구조가 아닌 div 구조로 데이터 재구성
         formatted_rows = sections_rows_html.replace('<tr><td colspan="2">', '').replace('</td></tr>', '')
     else:
-        # 개념+문제 보기: 기존 테이블(Master Table) 구조 유지
         layout_style = f"""
             .content-wrapper {{ display: block; }}
             .master-table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
-            .header-box {{ display: flex; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; }}
+            .header-box {{ 
+                display: flex; background-color: #f8f9fa; border-top: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; 
+                font-weight: bold; text-align: center; position: sticky; top: 0; z-index: 100; -webkit-print-color-adjust: exact; 
+                font-size: {1.0 * scale_factor}em;
+            }}
             .header-box .concept-h {{ width: 60%; padding: 4px 12px; box-sizing: border-box; border-right: 1px solid #edf2f7; }}
             .header-box .problem-h {{ width: 40%; padding: 4px 12px; box-sizing: border-box; }}
         """
@@ -236,51 +240,67 @@ if df_raw is not None:
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 20px; color: #333; line-height: 1.4; background-color: white; }}
+            /* 배율(Scale) 적용의 핵심: body의 font-size 조절 */
+            body {{ 
+                font-family: 'Noto Sans KR', sans-serif; 
+                margin: 0; 
+                padding: {20 * scale_factor}px; 
+                color: #333; 
+                line-height: 1.4; 
+                background-color: white; 
+                font-size: {14 * scale_factor}px; 
+            }}
             
-            /* 다단 및 레이아웃 제어 */
             {layout_style}
 
-            .bullet-line {{ display: flex !important; align-items: flex-start !important; margin: 4px 0 !important; line-height: 1.5; }}
+            .bullet-line {{ display: flex !important; align-items: flex-start !important; margin: {4 * scale_factor}px 0 !important; line-height: 1.5; }}
             .bullet-marker {{ display: inline-block !important; flex-shrink: 0 !important; width: 1.4em !important; text-align: left !important; }}
             .bullet-content {{ flex: 1 !important; word-break: keep-all; }}
             
             .main-section-header {{
-                width: 100%; background-color: #dbe4ef; padding: 8px 15px; font-weight: bold; font-size: 1.1em; color: #2d3748;
-                border-left: 5px solid #4a5568; box-sizing: border-box; margin: 15px 0 10px 0;
+                width: 100%; background-color: #dbe4ef; padding: {8 * scale_factor}px {15 * scale_factor}px; 
+                font-weight: bold; font-size: 1.2em; color: #2d3748;
+                border-left: {5 * scale_factor}px solid #4a5568; box-sizing: border-box; margin: {15 * scale_factor}px 0 {10 * scale_factor}px 0;
                 break-after: avoid; -webkit-print-color-adjust: exact;
             }}
 
             .section-header {{ 
-                width: 100%; background-color: #edf2f7; padding: 10px 15px; font-weight: bold; font-size: 0.95em; color: #718096; 
-                border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-bottom: 8px; break-after: avoid; -webkit-print-color-adjust: exact; 
+                width: 100%; background-color: #edf2f7; padding: {10 * scale_factor}px {15 * scale_factor}px; 
+                font-weight: bold; font-size: 1.0em; color: #718096; 
+                border-left: {5 * scale_factor}px solid #cbd5e0; box-sizing: border-box; margin-bottom: {8 * scale_factor}px; 
+                break-after: avoid; -webkit-print-color-adjust: exact; 
             }}
             
             .sub-section {{ display: flex; width: 100%; }}
-            .column {{ display: flex; flex-direction: column; padding: 2px 10px; box-sizing: border-box; flex: 1; }}
+            .column {{ display: flex; flex-direction: column; padding: 2px {10 * scale_factor}px; box-sizing: border-box; flex: 1; }}
             .concept-col {{ width: {"100%" if only_concept else "60%"}; {"border-right: 1px solid #edf2f7;" if not only_concept else ""} }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             
-            .content-block {{ width: 100%; margin-bottom: 15px; break-inside: avoid; }}
-            .category-title {{ font-weight: bold; font-size: 1.0em; color: #1a202c; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; }}
-            .freq-badge {{ color: #94a3b8; font-size: 0.8em; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }}
+            .content-block {{ width: 100%; margin-bottom: {15 * scale_factor}px; break-inside: avoid; }}
+            .category-title {{ font-weight: bold; font-size: 1.1em; color: #1a202c; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; }}
+            .freq-badge {{ color: #94a3b8; font-size: 0.85em; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }}
             
-            /* 마크다운 테이블 스타일 유지 */
-            table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 10px 0; border-top: 2px solid #cbd5e0; table-layout: auto !important; font-size: 0.9em !important; }}
-            table:not(.master-table) th {{ background-color: #f7fafc; font-weight: bold; padding: 6px 10px !important; border-bottom: 2px solid #cbd5e0 !important; }}
-            table:not(.master-table) td:first-child {{ white-space: nowrap !important; width: 1% !important; padding: 8px 15px 8px 10px !important; background-color: #f8f9fa; font-weight: bold; }}
-            table:not(.master-table) td {{ border-bottom: 1px solid #e2e8f0; padding: 8px 10px !important; vertical-align: middle !important; }}
+            .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; }}
+
+            /* 마크다운 테이블 배율 유지 */
+            table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: {10 * scale_factor}px 0; border-top: 2px solid #cbd5e0; table-layout: auto !important; font-size: 0.95em !important; }}
+            table:not(.master-table) th {{ background-color: #f7fafc; font-weight: bold; padding: {6 * scale_factor}px {10 * scale_factor}px !important; border-bottom: 2px solid #cbd5e0 !important; }}
+            table:not(.master-table) td:first-child {{ white-space: nowrap !important; width: 1% !important; padding: {8 * scale_factor}px {15 * scale_factor}px {8 * scale_factor}px {10 * scale_factor}px !important; background-color: #f8f9fa; font-weight: bold; }}
+            table:not(.master-table) td {{ border-bottom: 1px solid #e2e8f0; padding: {8 * scale_factor}px {10 * scale_factor}px !important; vertical-align: middle !important; }}
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
-                @page {{ size: A4; margin: 15mm; }}
+                @page {{ size: A4; margin: 10mm; }}
                 body {{ padding: 0; }}
             }}
         </style>
     </head>
     <body>
-        <div class="print-button-container" style="padding: 10px; border-bottom: 1px solid #eee;">
-            <button class="btn-print" onclick="window.print()" style="background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">🖨️ PDF로 저장 (2단 인쇄 모드)</button>
+        <div class="print-button-container" style="padding: 10px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: white; z-index: 1000;">
+            <button class="btn-print" onclick="window.print()" style="background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                🖨️ PDF로 저장 (현재 배율: {print_scale}%)
+            </button>
+            <span style="margin-left: 10px; font-size: 0.9em; color: #666;">* 사이드바에서 배율을 조절한 후 인쇄하세요.</span>
         </div>
         {container_start}
         {formatted_rows}
@@ -288,7 +308,8 @@ if df_raw is not None:
     </body>
     </html>
     """
-    iframe_height = max(2000, len(df) * 180) 
+    # 배율에 따라 iframe 높이도 유동적으로 조절
+    iframe_height = max(2000, len(df) * 180 * scale_factor) 
     components.html(full_html_page, height=iframe_height, scrolling=True)
 else:
     st.error("데이터를 불러오지 못했습니다.")
