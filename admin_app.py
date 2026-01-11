@@ -258,7 +258,7 @@ if df_raw is not None:
             .section-container {{ margin-bottom: 20px; text-align: left; {s_break} box-sizing: border-box; }}
             
             .section-header {{ 
-                width: 100%; background-color: #edf2f7; padding: 5px 15px; font-weight: bold; font-size: 0.95em; color: #718096; 
+                width: 100%; background-color: #edf2f7; padding: 10px 15px; font-weight: bold; font-size: 0.95em; color: #718096; 
                 border-left: 5px solid #cbd5e0; box-sizing: border-box; margin-bottom: 8px; 
                 page-break-after: avoid !important; break-after: avoid-page !important;
                 -webkit-print-color-adjust: exact; 
