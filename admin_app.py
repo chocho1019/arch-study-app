@@ -294,10 +294,44 @@ if df_raw is not None:
             .problem-block {{ font-size: 0.9em; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; margin-bottom: 8px; }}
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
-            table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 8px 0; border-top: 2px solid #cbd5e0; }}
-            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 8px 10px; font-size: 0.85em; text-align: left; }}
-            th {{ background-color: #f7fafc; font-weight: bold; }}
-            
+            /* --- 마크다운 테이블 간격 및 줄바꿈 방지 설정 --- */
+            table:not(.master-table) {{ 
+                border-collapse: collapse; 
+                width: 100%; 
+                margin: 12px 0; 
+                border-top: 2px solid #cbd5e0; 
+                table-layout: auto !important; /* 글자 길이에 따라 자동 확장 */
+            }}
+
+            /* 1번째 열 (구분, 산정식 등) 설정 */
+            table:not(.master-table) th:first-child,
+            table:not(.master-table) td:first-child {{
+                white-space: nowrap !important;  /* 절대 2줄 쓰기 방지 */
+                width: 1% !important;           /* 내용만큼만 최소 너비 차지 */
+                padding: 12px 20px 12px 10px !important; /* 상하 12px, 우측 여백 20px로 간격 확보 */
+                background-color: #f8f9fa;       /* 왼쪽 열 배경색으로 가독성 향상 */
+                font-weight: bold;
+                vertical-align: middle !important;
+            }}
+
+            /* 2번째 열 (내용) 설정 */
+            table:not(.master-table) td:last-child {{
+                padding: 12px 10px !important;
+                vertical-align: middle !important;
+                line-height: 1.6;
+            }}
+
+            table:not(.master-table) th {{ 
+                background-color: #f7fafc; 
+                font-weight: bold; 
+                text-align: left;
+                border-bottom: 2px solid #cbd5e0;
+            }}
+
+            table:not(.master-table) td {{ 
+                border-bottom: 1px solid #e2e8f0; 
+            }}
+            /* -------------------------------------------- */
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
