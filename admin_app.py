@@ -84,7 +84,7 @@ if df_raw is not None:
     st.sidebar.header("🔍 필터 및 인쇄 설정")
     only_concept = st.sidebar.checkbox("개념만 보기")
     
-    # 배율 조정 슬라이더 추가
+    # 배율 조정 슬라이더
     print_scale = st.sidebar.slider("인쇄 배율 조정 (%)", min_value=50, max_value=150, value=100, step=5)
     scale_factor = print_scale / 100.0
 
@@ -200,7 +200,7 @@ if df_raw is not None:
         </td></tr>
         """
 
-    # 레이아웃 모드에 따른 동적 스타일 설정
+    # 3. 레이아웃 모드별 스타일 및 컨테이너 설정
     if only_concept:
         layout_style = f"""
             .content-wrapper {{
@@ -234,13 +234,30 @@ if df_raw is not None:
         container_end = '</tbody></table>'
         formatted_rows = sections_rows_html
 
+    # 4. 실시간 높이 감지 스크립트 (Iframe 여백 제거용)
+    dynamic_height_js = """
+    <script>
+        function sendHeight() {
+            const height = document.body.scrollHeight;
+            window.parent.postMessage({
+                type: 'streamlit:setFrameHeight',
+                height: height
+            }, '*');
+        }
+        window.onload = sendHeight;
+        window.onresize = sendHeight;
+        // 내용 변화 감지 (이미지 로딩 등)
+        const observer = new ResizeObserver(sendHeight);
+        observer.observe(document.body);
+    </script>
+    """
+
     full_html_page = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            /* 배율(Scale) 적용의 핵심: body의 font-size 조절 */
             body {{ 
                 font-family: 'Noto Sans KR', sans-serif; 
                 margin: 0; 
@@ -249,6 +266,7 @@ if df_raw is not None:
                 line-height: 1.4; 
                 background-color: white; 
                 font-size: {14 * scale_factor}px; 
+                overflow-y: hidden; /* Iframe 내부 스크롤 방지 */
             }}
             
             {layout_style}
@@ -279,10 +297,8 @@ if df_raw is not None:
             .content-block {{ width: 100%; margin-bottom: {15 * scale_factor}px; break-inside: avoid; }}
             .category-title {{ font-weight: bold; font-size: 1.1em; color: #1a202c; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between; }}
             .freq-badge {{ color: #94a3b8; font-size: 0.85em; border: 1px solid #94a3b8; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }}
-            
             .content-img {{ max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; }}
 
-            /* 마크다운 테이블 배율 유지 */
             table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: {10 * scale_factor}px 0; border-top: 2px solid #cbd5e0; table-layout: auto !important; font-size: 0.95em !important; }}
             table:not(.master-table) th {{ background-color: #f7fafc; font-weight: bold; padding: {6 * scale_factor}px {10 * scale_factor}px !important; border-bottom: 2px solid #cbd5e0 !important; }}
             table:not(.master-table) td:first-child {{ white-space: nowrap !important; width: 1% !important; padding: {8 * scale_factor}px {15 * scale_factor}px {8 * scale_factor}px {10 * scale_factor}px !important; background-color: #f8f9fa; font-weight: bold; }}
@@ -298,18 +314,18 @@ if df_raw is not None:
     <body>
         <div class="print-button-container" style="padding: 10px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: white; z-index: 1000;">
             <button class="btn-print" onclick="window.print()" style="background-color: #4CAF50; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                🖨️ PDF로 저장 (현재 배율: {print_scale}%)
+                🖨️ PDF로 저장 (배율: {print_scale}%)
             </button>
-            <span style="margin-left: 10px; font-size: 0.9em; color: #666;">* 사이드바에서 배율을 조절한 후 인쇄하세요.</span>
         </div>
         {container_start}
         {formatted_rows}
         {container_end}
+        {dynamic_height_js}
     </body>
     </html>
     """
-    # 배율에 따라 iframe 높이도 유동적으로 조절
-    iframe_height = max(2000, len(df) * 180 * scale_factor) 
-    components.html(full_html_page, height=iframe_height, scrolling=True)
+    
+    # components.html의 높이를 초기값으로 설정하되, JS가 동적으로 크기를 조절하도록 함
+    components.html(full_html_page, height=max(500, len(df) * 100 * scale_factor), scrolling=False)
 else:
     st.error("데이터를 불러오지 못했습니다.")
