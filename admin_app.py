@@ -295,8 +295,9 @@ if df_raw is not None:
             .info-tag {{ color: #a0aec0; font-weight: bold; font-size: 0.8em; margin-bottom: 2px; }}
             
             table:not(.master-table) {{ border-collapse: collapse; width: 100%; margin: 8px 0; border-top: 2px solid #cbd5e0; }}
-            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 3px 6px; font-size: 0.85em; text-align: left; }}
+            th, td {{ border-bottom: 1px solid #e2e8f0; padding: 8px 10px; font-size: 0.85em; text-align: left; }}
             th {{ background-color: #f7fafc; font-weight: bold; }}
+            
 
             @media print {{
                 .print-button-container {{ display: none !important; }}
