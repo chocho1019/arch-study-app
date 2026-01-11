@@ -272,7 +272,7 @@ if df_raw is not None:
             .concept-col {{ width: {c_c_w}; border-right: {c_c_b}; }}
             .problem-col {{ width: 40%; background-color: #fcfcfc; -webkit-print-color-adjust: exact; }}
             
-            .content-block {{ width: 100%; margin-bottom: 12px; page-break-inside: avoid !important; break-inside: avoid !important; }}
+            .content-block {{ width: 100%; margin-bottom: 15px; page-break-inside: avoid !important; break-inside: avoid !important; }}
             .first-block {{ page-break-before: avoid !important; break-before: avoid-page !important; }}
             
             .category-title {{ 
