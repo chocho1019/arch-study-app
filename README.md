@@ -15,6 +15,6 @@ A high-performance web application designed for students preparing for the **Kor
   - **Secure Login**: Email-based authentication integrated with GCP.
 
 ## 🛠 Tech Stack
-- **Frontend/Backend**: Streamlit
+- **Language**: Python (Streamlit)
 - **Database**: Google Sheets (via Gspread API)
 - **Data Engine**: Pandas (Dynamic Filtering & Sorting)
